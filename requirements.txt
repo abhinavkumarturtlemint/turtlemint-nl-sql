@@ -1,0 +1,12 @@
+fastapi
+uvicorn[standard]
+pydantic>=2
+requests
+sqlglot
+chdb
+numpy
+clickhouse-connect
+streamlit
+pandas
+python-dotenv
+pytest
