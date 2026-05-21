@@ -6,8 +6,10 @@ Formatter) -> summary + table + chart. Supports in-thread refinement.
 
 Run with:  streamlit run app/frontend/app.py
 """
+import base64
 import os
 import sys
+from pathlib import Path
 
 # Make `from app...` imports work no matter how Streamlit launches this file.
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
@@ -29,6 +31,17 @@ from app.frontend.client import ensure_seeded, get_client  # noqa: E402
 _client = get_client()
 if _client.in_process:
     ensure_seeded()
+
+
+@st.cache_data
+def _logo_uri() -> str:
+    p = Path(__file__).parent / "logo.png"
+    if not p.exists():
+        return ""
+    return "data:image/png;base64," + base64.b64encode(p.read_bytes()).decode()
+
+
+LOGO = _logo_uri()
 
 EXAMPLES = [
     "How many partners signed up last month?",
@@ -53,7 +66,12 @@ st.markdown(
       }
       .tm-logo { font-size:28px; font-weight:800; color:#FFFFFF; letter-spacing:-0.5px; }
       .tm-logo sup { font-size:16px; }
+      .tm-logo-img { height:46px; width:46px; object-fit:contain;
+                     background:#FFFFFF; border-radius:11px; padding:6px;
+                     box-shadow:0 2px 6px rgba(0,0,0,0.12); }
       .tm-sub { color:#EAFFF8; font-size:15px; font-weight:500; }
+      .tm-side-wrap { display:flex; align-items:center; gap:9px; margin-bottom:2px; }
+      .tm-side-img { height:30px; width:30px; object-fit:contain; }
       .tm-side { font-size:22px; font-weight:800; color:#00875a; letter-spacing:-0.3px; }
       .tm-step { color:#00875a; font-weight:700; font-size:13px; text-transform:uppercase;
                  letter-spacing:0.5px; margin:6px 0 2px; }
@@ -113,7 +131,13 @@ for key, default in {
 
 # --- sidebar ---
 with st.sidebar:
-    st.markdown('<div class="tm-side">turtlemint<sup>+</sup></div>', unsafe_allow_html=True)
+    st.markdown(
+        '<div class="tm-side-wrap">'
+        + (f'<img class="tm-side-img" src="{LOGO}"/>' if LOGO else "")
+        + '<span class="tm-side">turtlemint<sup>+</sup></span>'
+        '</div>',
+        unsafe_allow_html=True,
+    )
     st.caption("Ask data questions in plain English. Agentic pipeline (dummy data).")
     st.session_state.user_id = st.text_input("Your user id", st.session_state.user_id)
 
@@ -151,7 +175,8 @@ with st.sidebar:
 # --- header ---
 st.markdown(
     '<div class="tm-header">'
-    '<span class="tm-logo">turtlemint<sup>+</sup></span>'
+    + (f'<img class="tm-logo-img" src="{LOGO}"/>' if LOGO else "")
+    + '<span class="tm-logo">turtlemint<sup>+</sup></span>'
     '<span class="tm-sub">Ask your data a question — in plain English</span>'
     '</div>',
     unsafe_allow_html=True,
