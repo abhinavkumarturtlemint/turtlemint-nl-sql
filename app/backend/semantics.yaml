@@ -62,10 +62,10 @@ metrics:
     keywords: [customer, demographics, age, gender, location, state, customers]
 
   - name: client_lookup
-    label: "Client / Customer Lookup"
-    description: "Look up a specific client or customer by name, ID, or phone. Customer first name is proposer_fname, last name is proposer_lname, customer ID is customerid."
+    label: "Client / Partner / Person Lookup"
+    description: "Look up any person by name. IMPORTANT — names are stored in multiple columns: (1) Partner/agent/DP/intermediary full name → salesdetail_intermediaryname (single field, e.g. 'mahjabin khatun'). (2) Customer/proposer → proposer_fname + proposer_lname (split fields). (3) Area Manager → salesdetail_am. (4) RM → salesdetail_rm. Always search salesdetail_intermediaryname first for partner queries, and BOTH proposer fields for customer queries."
     tables: [policydetail]
-    keywords: [client, insured, proposer, policy holder, policyholder, person, individual, name, customer name, client name, give details, details of]
+    keywords: [client, insured, proposer, policy holder, policyholder, person, individual, name, customer name, client name, give details, details of, partner name, agent name, intermediary]
 
   # ── Real Turtlemint policydetail metrics (spectrum.policydetail) ──────────
 
@@ -252,10 +252,10 @@ business_terms:
     table: policydetail
     keywords: [gross premium, gwp, total premium]
 
-  - term: "customer name / client name"
-    definition: "Customer full name is stored as proposer_fname (first name) + proposer_lname (last name) in policydetail. To search by name use: lower(proposer_fname) ILIKE '%first%' AND lower(proposer_lname) ILIKE '%last%'. Customer ID is customerid. Client ID is clientid."
+  - term: "person / name lookup"
+    definition: "Names are stored in MULTIPLE columns in policydetail — choose the right one: (1) Partner / agent / DP / intermediary: use salesdetail_intermediaryname (stores full name as one string, e.g. 'mahjabin khatun'). (2) Customer / proposer / insured: use proposer_fname AND proposer_lname (split into two columns). (3) Area Manager: salesdetail_am. (4) RM / Relationship Manager: salesdetail_rm. (5) SM: salesdetail_sm. When the person's role is unknown, search ALL name columns with OR: lower(salesdetail_intermediaryname) ILIKE '%name%' OR lower(proposer_fname) ILIKE '%name%'."
     table: policydetail
-    keywords: [client, customer name, insured, proposer, policy holder, name, person]
+    keywords: [client, customer name, insured, proposer, policy holder, name, person, partner name, agent, intermediary, give details, details of]
 
 
 example_questions:
@@ -360,13 +360,34 @@ example_questions:
   - question: "Give details of client Mahjabin Khatun"
     tables: [policydetail]
     sql: >
-      SELECT customerid, clientid, proposer_fname, proposer_lname,
-             proposer_mobile, proposer_email, insurer, vertical,
-             businesstype, substatus, premiumdetails_grosspremium,
-             riskstartdate, riskenddate
+      SELECT salesdetail_intermediaryname, salesdetail_intermediaryinternalid,
+             salesdetail_region, salesdetail_am, salesdetail_rm,
+             insurer, vertical, businesstype, substatus,
+             premiumdetails_grosspremium, policynumber, startdate, enddate
       FROM spectrum.policydetail
-      WHERE lower(proposer_fname) ILIKE '%mahjabin%'
-        AND lower(proposer_lname) ILIKE '%khatun%'
+      WHERE lower(salesdetail_intermediaryname) ILIKE '%mahjabin khatun%'
+      LIMIT 1000
+
+  - question: "Show all policies sold by partner Mahjabin Khatun"
+    tables: [policydetail]
+    sql: >
+      SELECT salesdetail_intermediaryname, salesdetail_intermediaryinternalid,
+             insurer, vertical, businesstype, substatus,
+             premiumdetails_grosspremium, policynumber, customerid,
+             startdate, enddate
+      FROM spectrum.policydetail
+      WHERE lower(salesdetail_intermediaryname) ILIKE '%mahjabin khatun%'
+      LIMIT 1000
+
+  - question: "Give details of customer Utkarsh Singh"
+    tables: [policydetail]
+    sql: >
+      SELECT customerid, proposer_fname, proposer_lname,
+             insurer, vertical, businesstype, substatus,
+             premiumdetails_grosspremium, policynumber, startdate, enddate
+      FROM spectrum.policydetail
+      WHERE lower(proposer_fname) ILIKE '%utkarsh%'
+        AND lower(proposer_lname) ILIKE '%singh%'
       LIMIT 1000
 
   - question: "Show all policies for customer ID C12345"
@@ -374,7 +395,7 @@ example_questions:
     sql: >
       SELECT customerid, proposer_fname, proposer_lname, insurer,
              vertical, businesstype, substatus, premiumdetails_grosspremium,
-             riskstartdate, riskenddate
+             startdate, enddate
       FROM spectrum.policydetail
       WHERE customerid = 'C12345'
       LIMIT 1000
