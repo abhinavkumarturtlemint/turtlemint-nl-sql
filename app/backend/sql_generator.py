@@ -48,7 +48,8 @@ def generate_with(question: str, schema_text: str, examples_text: str,
     for in-thread refinement."""
     parts = [
         schema_text,
-        f"\nExample questions and the correct SQL:\n{examples_text}" if examples_text else "",
+        f"\nSemantic context (metric definitions, business terms, example queries):\n{examples_text}"
+        if examples_text else "",
     ]
     if previous:
         parts.append(f"\nThis is a refinement of an earlier question: {previous}")

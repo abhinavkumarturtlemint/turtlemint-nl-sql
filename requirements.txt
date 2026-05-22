@@ -3,10 +3,11 @@ uvicorn[standard]
 pydantic>=2
 requests
 sqlglot
-chdb
+duckdb
 numpy
 clickhouse-connect
 streamlit
 pandas
 python-dotenv
+pyyaml
 pytest

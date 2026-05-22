@@ -1,0 +1,347 @@
+# Turtlemint Semantic Layer
+# Replaces the RAG vector index entirely — zero embeddings, zero numpy.
+# Keyword matching routes questions to the right tables + injects business
+# term definitions and example SQL directly into the generator prompt.
+#
+# To extend: add a metric/dimension/term block and restart. No reindexing.
+
+metrics:
+
+  - name: partner_signups
+    label: "Partner Signups"
+    description: "Number of partners who registered / signed up in a time period"
+    tables: [partner]
+    keywords: [partner, signed up, registered, onboarded, joined, new partner]
+
+  - name: total_premium
+    label: "Total Premium"
+    description: "Sum of policy premiums, optionally broken down by product type or state"
+    tables: [policy]
+    keywords: [premium, total premium, revenue, insurance revenue]
+
+  - name: policies_sold
+    label: "Policies Sold"
+    description: "Count of policies issued, optionally by partner or product"
+    tables: [policy, partner]
+    keywords: [policies, policy count, policies sold, issued, number of policies]
+
+  - name: top_partners
+    label: "Top Partners by Sales"
+    description: "Partners ranked by number of policies sold or premium generated"
+    tables: [partner, policy]
+    keywords: [top partners, best partners, partner ranking, partner performance, leading partners]
+
+  - name: claims_overview
+    label: "Claims Overview"
+    description: "Count or breakdown of claims by status (Pending, Settled, Rejected)"
+    tables: [claim]
+    keywords: [claims, pending claims, settled claims, claim status, claims filed]
+
+  - name: commission_summary
+    label: "Commission Summary"
+    description: "Average or total commission earned per partner or partner tier"
+    tables: [commission, partner]
+    keywords: [commission, earnings, payout, commission per, agent earnings]
+
+  - name: health_premium_by_state
+    label: "Health Premium by State"
+    description: "Total health insurance premium grouped by customer state"
+    tables: [policy, customer]
+    keywords: [health premium, state, health by state, geography, region]
+
+  - name: policy_lapse
+    label: "Lapsed Policies"
+    description: "Policies that have lapsed (expired without renewal)"
+    tables: [policy]
+    keywords: [lapsed, expired, lapse, policy lapse, not renewed]
+
+  - name: customer_demographics
+    label: "Customer Demographics"
+    description: "Customer breakdown by state, age, or gender"
+    tables: [customer]
+    keywords: [customer, demographics, age, gender, location, state, customers]
+
+  # ── Real Turtlemint policydetail metrics (spectrum.policydetail) ──────────
+
+  - name: policies_by_insurer
+    label: "Policies by Insurer"
+    description: "Count or premium breakdown by insurance company (ICICIPRULI, HDFCLI, etc.)"
+    tables: [policydetail]
+    keywords: [insurer, insurance company, icici, hdfc, sbi, max, bajaj, policies by insurer]
+
+  - name: policies_by_vertical
+    label: "Policies by Vertical"
+    description: "Count or premium by business vertical: LIFE, MOTOR, HEALTH, TRAVEL"
+    tables: [policydetail]
+    keywords: [vertical, life, motor, health, travel, product category, productcategory]
+
+  - name: gross_premium
+    label: "Gross Premium"
+    description: "Total gross premium collected across policies"
+    tables: [policydetail]
+    keywords: [gross premium, premium collected, total premium, gwp, written premium]
+
+  - name: net_premium
+    label: "Net Premium"
+    description: "Total net premium (excluding GST/service tax)"
+    tables: [policydetail]
+    keywords: [net premium, annualised premium, annualized premium]
+
+  - name: policies_by_region
+    label: "Policies by Region"
+    description: "Count or premium breakdown by sales region: East, West, North, South"
+    tables: [policydetail]
+    keywords: [region, east, west, north, south, zone, geography, regional]
+
+  - name: policies_by_branch
+    label: "Policies by Branch"
+    description: "Count or premium breakdown by branch location city"
+    tables: [policydetail]
+    keywords: [branch, branch location, city, pibranchlocation, office]
+
+  - name: partner_policy_sales
+    label: "Partner Policy Sales"
+    description: "Policies sold by a specific partner/intermediary, by DP number or name"
+    tables: [policydetail]
+    keywords: [partner, intermediary, dp number, agent, sold by, salesdetail]
+
+  - name: lapsed_policies_real
+    label: "Lapsed Policies (Real Data)"
+    description: "Policies with status LAPSED or substatus LAPSED in the real policydetail table"
+    tables: [policydetail]
+    keywords: [lapsed, lapse, in force, substatus, policy lapsed]
+
+  - name: new_vs_renewal
+    label: "New vs Renewal Business"
+    description: "Split of new business vs renewal policies"
+    tables: [policydetail]
+    keywords: [new business, renewal, businesstype, new vs renewal]
+
+  - name: payment_status_breakdown
+    label: "Payment Status Breakdown"
+    description: "Policies by payment status: Completed, Pending, Overdue"
+    tables: [policydetail]
+    keywords: [payment status, paid, overdue, completed, pending payment, instalment]
+
+  - name: sum_assured_by_category
+    label: "Sum Assured by Category"
+    description: "Total sum insured / sum assured grouped by product category or plan type"
+    tables: [policydetail]
+    keywords: [sum assured, sum insured, coverage, policyrisk, cover amount]
+
+  - name: sales_hierarchy
+    label: "Sales Hierarchy Performance"
+    description: "Policies or premium grouped by AM, RM, SM, or National Head"
+    tables: [policydetail]
+    keywords: [am, rm, sm, area manager, relationship manager, sales manager, national head, hierarchy]
+
+
+dimensions:
+
+  - name: product_type
+    label: "Product Type"
+    table: policy
+    column: product_type
+    values: [Motor, Health, Life, Travel]
+    keywords: [motor, health, life, travel, product type, product]
+
+  - name: partner_tier
+    label: "Partner Tier"
+    table: partner
+    column: tier
+    values: [Silver, Gold, Platinum]
+    keywords: [tier, silver, gold, platinum, partner level, partner category]
+
+  - name: claim_status
+    label: "Claim Status"
+    table: claim
+    column: status
+    values: [Pending, Settled, Rejected]
+    keywords: [pending, settled, rejected, claim status, settlement]
+
+  - name: state
+    label: "State"
+    table: customer
+    column: state
+    keywords: [state, region, location, geography, city]
+
+  - name: policy_status
+    label: "Policy Status"
+    table: policy
+    column: status
+    values: [active, lapsed, cancelled]
+    keywords: [active policy, lapsed policy, cancelled, policy status]
+
+
+business_terms:
+
+  - term: "lapsed policy"
+    definition: "A policy where status = 'lapsed' (expired without renewal)"
+    sql_filter: "status = 'lapsed'"
+    table: policy
+    keywords: [lapsed, lapse, not renewed, expired policy]
+
+  - term: "pending settlement"
+    definition: "A claim where status = 'Pending' (not yet resolved)"
+    sql_filter: "status = 'Pending'"
+    table: claim
+    keywords: [pending, unsettled, pending settlement, outstanding claims]
+
+  - term: "active policy"
+    definition: "A policy where status = 'active'"
+    sql_filter: "status = 'active'"
+    table: policy
+    keywords: [active, live policy, current policy, in-force]
+
+  - term: "last month"
+    definition: "The calendar month immediately before the current month"
+    sql_filter: "toStartOfMonth(created_at) = toStartOfMonth(now() - INTERVAL 1 MONTH)"
+    keywords: [last month, previous month, prior month]
+
+  - term: "this year"
+    definition: "The current calendar year (year-to-date)"
+    sql_filter: "toYear(created_at) = toYear(now())"
+    keywords: [this year, current year, ytd, year to date]
+
+  - term: "this month"
+    definition: "The current calendar month"
+    sql_filter: "toStartOfMonth(created_at) = toStartOfMonth(now())"
+    keywords: [this month, current month]
+
+  # ── Real policydetail business terms ─────────────────────────────────────
+
+  - term: "in force"
+    definition: "A policy that is currently active and paying — substatus = 'IN_FORCE'"
+    sql_filter: "substatus = 'IN_FORCE'"
+    table: policydetail
+    keywords: [in force, inforce, active policy, live policy]
+
+  - term: "lapsed policy (real)"
+    definition: "A policy in the real data where substatus = 'LAPSED'"
+    sql_filter: "substatus = 'LAPSED'"
+    table: policydetail
+    keywords: [lapsed, lapse, not renewed]
+
+  - term: "new business"
+    definition: "Policies where businesstype = 'NEW' (not renewals)"
+    sql_filter: "businesstype = 'NEW'"
+    table: policydetail
+    keywords: [new business, fresh policy, new policy]
+
+  - term: "renewal"
+    definition: "Policies where businesstype = 'RENEWAL'"
+    sql_filter: "businesstype = 'RENEWAL'"
+    table: policydetail
+    keywords: [renewal, renewed, renewing]
+
+  - term: "life vertical"
+    definition: "Life insurance policies — vertical = 'LIFE'"
+    sql_filter: "vertical = 'LIFE'"
+    table: policydetail
+    keywords: [life, life insurance, life vertical, life policies]
+
+  - term: "gross premium"
+    definition: "premiumdetails_grosspremium — the full premium including GST"
+    sql_filter: "premiumdetails_grosspremium"
+    table: policydetail
+    keywords: [gross premium, gwp, total premium]
+
+
+example_questions:
+
+  - question: "How many partners signed up last month?"
+    tables: [partner]
+    sql: >
+      SELECT count() AS partner_count
+      FROM turtlemint.partner
+      WHERE toStartOfMonth(joined_at) = toStartOfMonth(now() - INTERVAL 1 MONTH)
+
+  - question: "Total premium by product type"
+    tables: [policy]
+    sql: >
+      SELECT product_type, sum(premium) AS total_premium
+      FROM turtlemint.policy
+      GROUP BY product_type
+      ORDER BY total_premium DESC
+
+  - question: "Top 5 partners by number of policies sold"
+    tables: [partner, policy]
+    sql: >
+      SELECT p.name, count() AS policies_sold
+      FROM turtlemint.policy pol
+      JOIN turtlemint.partner p ON pol.partner_id = p.partner_id
+      GROUP BY p.name
+      ORDER BY policies_sold DESC
+      LIMIT 5
+
+  - question: "Which state has the highest health premium?"
+    tables: [policy, customer]
+    sql: >
+      SELECT c.state, sum(pol.premium) AS health_premium
+      FROM turtlemint.policy pol
+      JOIN turtlemint.customer c ON pol.customer_id = c.customer_id
+      WHERE pol.product_type = 'Health'
+      GROUP BY c.state
+      ORDER BY health_premium DESC
+      LIMIT 1
+
+  - question: "How many claims are still pending settlement?"
+    tables: [claim]
+    sql: >
+      SELECT count() AS pending_claims
+      FROM turtlemint.claim
+      WHERE status = 'Pending'
+
+  - question: "Average commission per partner tier"
+    tables: [commission, partner]
+    sql: >
+      SELECT p.tier, avg(c.amount) AS avg_commission
+      FROM turtlemint.commission c
+      JOIN turtlemint.partner p ON c.partner_id = p.partner_id
+      GROUP BY p.tier
+      ORDER BY avg_commission DESC
+
+  # ── Real policydetail example queries ────────────────────────────────────
+
+  - question: "Total gross premium by insurer"
+    tables: [policydetail]
+    sql: >
+      SELECT insurer, sum(premiumdetails_grosspremium) AS total_gross_premium
+      FROM spectrum.policydetail
+      GROUP BY insurer
+      ORDER BY total_gross_premium DESC
+
+  - question: "How many policies are in force?"
+    tables: [policydetail]
+    sql: >
+      SELECT count() AS inforce_policies
+      FROM spectrum.policydetail
+      WHERE substatus = 'IN_FORCE'
+
+  - question: "Policy count by region"
+    tables: [policydetail]
+    sql: >
+      SELECT salesdetail_region, count() AS policy_count
+      FROM spectrum.policydetail
+      GROUP BY salesdetail_region
+      ORDER BY policy_count DESC
+
+  - question: "Top 5 partners by gross premium"
+    tables: [policydetail]
+    sql: >
+      SELECT salesdetail_intermediaryname,
+             salesdetail_intermediaryinternalid,
+             count() AS policy_count,
+             sum(premiumdetails_grosspremium) AS total_premium
+      FROM spectrum.policydetail
+      GROUP BY salesdetail_intermediaryname, salesdetail_intermediaryinternalid
+      ORDER BY total_premium DESC
+      LIMIT 5
+
+  - question: "New business vs renewal split"
+    tables: [policydetail]
+    sql: >
+      SELECT businesstype, count() AS policy_count,
+             sum(premiumdetails_grosspremium) AS total_premium
+      FROM spectrum.policydetail
+      GROUP BY businesstype

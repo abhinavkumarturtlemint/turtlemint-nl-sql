@@ -91,6 +91,62 @@ CATALOG: Dict = {
                 {"name": "paid_at", "type": "Nullable(DateTime)", "description": "When commission was paid; NULL if pending."},
             ],
         },
+        # ── Real data from Turtlemint OpenMetadata (ch-spectrum.spectrum.spectrum.policydetail) ──
+        {
+            "name": "policydetail",
+            "database": "spectrum",           # overrides default DB_NAME
+            "description": "Real Turtlemint policy records from ClickHouse Spectrum — life, motor, health policies with full sales hierarchy, premium and payment details.",
+            "order_by": "_id",
+            "columns": [
+                {"name": "_id",                                   "type": "String",           "description": "Unique MIS folder / policy record ID (e.g. MIS_PGLI40TZKTM)."},
+                {"name": "policynumber",                          "type": "String",           "description": "Insurer-assigned policy number."},
+                {"name": "status",                                "type": "String",           "description": "Policy status: ACTIVE, LAPSED, CANCELLED, etc."},
+                {"name": "substatus",                             "type": "String",           "description": "Sub-status: IN_FORCE, LAPSED, PAID_UP, etc."},
+                {"name": "recordstatus",                          "type": "String",           "description": "MIS record status: COMPLETE, PENDING, etc."},
+                {"name": "qcstatus",                              "type": "String",           "description": "QC status: RESOLVED, PENDING, etc."},
+                {"name": "vertical",                              "type": "String",           "description": "Business vertical: LIFE, MOTOR, HEALTH, TRAVEL."},
+                {"name": "businessvertical",                      "type": "String",           "description": "Business vertical label: Retail, SME, etc."},
+                {"name": "productcategory",                       "type": "String",           "description": "Product category: LIFE, MOTOR, HEALTH, etc."},
+                {"name": "category",                              "type": "String",           "description": "Product sub-category: term, ulip, traditional, endowment, etc."},
+                {"name": "plantype",                              "type": "String",           "description": "Plan type: ulip, traditional, term, etc."},
+                {"name": "planname",                              "type": "String",           "description": "Full plan/product name, e.g. 'ICICI Pru Life Time Classic'."},
+                {"name": "insurer",                               "type": "String",           "description": "Insurer code, e.g. ICICIPRULI, HDFCLI, SBILI, MAXLI."},
+                {"name": "businesstype",                          "type": "String",           "description": "NEW or RENEWAL."},
+                {"name": "channeltype",                           "type": "String",           "description": "Sales channel: partner, direct, bqp, etc."},
+                {"name": "createdat",                             "type": "Nullable(DateTime)","description": "Record creation timestamp."},
+                {"name": "issuancedate",                          "type": "Nullable(DateTime)","description": "Date the policy was issued by the insurer."},
+                {"name": "startdate",                             "type": "Nullable(DateTime)","description": "Policy risk start date."},
+                {"name": "enddate",                               "type": "Nullable(DateTime)","description": "Policy risk end date / maturity date."},
+                {"name": "sales_date",                            "type": "Nullable(DateTime)","description": "Date the sale was closed."},
+                {"name": "year",                                  "type": "Nullable(Int32)",  "description": "Year of the sales_date (partition key)."},
+                {"name": "month",                                 "type": "Nullable(Int32)",  "description": "Month of the sales_date (1–12)."},
+                {"name": "premiumdetails_grosspremium",           "type": "Nullable(Float64)","description": "Gross premium in INR (including taxes)."},
+                {"name": "premiumdetails_netpremium",             "type": "Nullable(Float64)","description": "Net premium in INR (excluding taxes)."},
+                {"name": "premiumdetails_annualisednetpremium",   "type": "Nullable(Float64)","description": "Annualised net premium — use for yearly premium comparisons."},
+                {"name": "premiumdetails_servicetax",             "type": "Nullable(Float64)","description": "GST / service tax component of premium in INR."},
+                {"name": "payment_paidamount",                    "type": "Nullable(Float64)","description": "Total amount paid by the customer so far in INR."},
+                {"name": "payment_paymentstatus",                 "type": "String",           "description": "Payment status: Completed, Pending, Overdue."},
+                {"name": "payment_paymentfrequency",              "type": "String",           "description": "Payment frequency: MONTHLY, QUARTERLY, ANNUAL, SINGLE."},
+                {"name": "payment_totalinstallementpaid",         "type": "Nullable(Int32)",  "description": "Number of instalments paid so far."},
+                {"name": "payment_installmentamount",             "type": "Nullable(Float64)","description": "Per-instalment amount in INR."},
+                {"name": "eligiblepremiumdetail_eligiblepremium", "type": "Nullable(Float64)","description": "Eligible premium for payout calculation."},
+                {"name": "policyrisk_suminsured",                 "type": "Nullable(Float64)","description": "Sum insured / sum assured in INR."},
+                {"name": "policyrisk_policyterm",                 "type": "Nullable(Int32)",  "description": "Total policy term in years."},
+                {"name": "salesdetail_region",                    "type": "String",           "description": "Sales region: East, West, North, South."},
+                {"name": "salesdetail_branchlocation",            "type": "String",           "description": "Branch city/location where the sale originated."},
+                {"name": "salesdetail_intermediaryname",          "type": "String",           "description": "Partner/intermediary name who sold the policy."},
+                {"name": "salesdetail_intermediaryinternalid",    "type": "String",           "description": "Internal DP number of the selling partner, e.g. 'DP - 1915334'."},
+                {"name": "salesdetail_intermediarylevel",         "type": "String",           "description": "Partner level: partner_level_1, partner_level_2, etc."},
+                {"name": "salesdetail_am",                        "type": "String",           "description": "Area Manager name for this sale."},
+                {"name": "salesdetail_rm",                        "type": "String",           "description": "Relationship Manager name for this sale."},
+                {"name": "salesdetail_sm",                        "type": "String",           "description": "Sales Manager name for this sale."},
+                {"name": "salesdetail_nationalhead",              "type": "String",           "description": "National Head name for this sale."},
+                {"name": "pibranchlocation",                      "type": "String",           "description": "PI branch location city."},
+                {"name": "leadid",                                "type": "String",           "description": "Lead ID that originated this policy (joins lead management system)."},
+                {"name": "customerid",                            "type": "String",           "description": "Customer ID (joins customer records)."},
+                {"name": "tenant",                                "type": "String",           "description": "Tenant identifier, always 'turtlemint'."},
+            ],
+        },
     ],
     "business_definitions": [
         {"term": "active partner", "definition": "A partner whose status = 'active'."},
@@ -178,13 +234,16 @@ def schema_prompt_for(tables: List[str], pruned: dict = None) -> str:
 
     `pruned`, if given, is {table_name: [keep_columns]} from the Column Prune
     Agent; otherwise all columns are included.
+
+    Each table uses its own `database` field if set, otherwise the catalog default.
     """
-    db = CATALOG["database"]
-    lines: List[str] = [f"Database: {db} (ClickHouse dialect)", ""]
+    default_db = CATALOG["database"]
+    lines: List[str] = ["ClickHouse dialect — always qualify table as db.table", ""]
     for name in tables:
         t = get_table(name)
         if not t:
             continue
+        db = t.get("database", default_db)   # real tables may be in spectrum db
         keep = set(pruned.get(name, [])) if pruned else None
         lines.append(f"TABLE {db}.{t['name']} -- {t['description']}")
         for col in t["columns"]:

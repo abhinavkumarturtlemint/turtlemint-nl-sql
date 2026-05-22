@@ -19,8 +19,8 @@ from typing import Any, Dict, List, Optional
 from fastapi import FastAPI
 from pydantic import BaseModel
 
-from app.backend import (audit, config, executor, guardrails, knowledge, llm,
-                         pipeline)
+from app.backend import (audit, config, executor, glossary, guardrails, llm,
+                         openmetadata, pipeline)
 from app.backend.schema_catalog import CATALOG, DOMAINS
 
 app = FastAPI(title="Turtlemint NL-SQL (agentic pipeline)")
@@ -63,6 +63,7 @@ class GenerateResponse(BaseModel):
     limit_applied: bool = False
     guardrail_ok: bool = False
     guardrail_error: Optional[str] = None
+    schema_source: str = "catalog"   # "live_api" | "catalog" | "mixed"
     usage: Dict[str, int] = {}
     error: Optional[str] = None
 
@@ -101,6 +102,10 @@ def health():
             "result_formatter": config.ENABLE_RESULT_FORMATTER,
         },
         "max_queries_per_day": config.MAX_QUERIES_PER_DAY,
+        "openmetadata_tables": openmetadata.known_tables(),
+        "schema_cache": openmetadata.cache_status(),
+        "glossary_url": glossary.GLOSSARY_URL,
+        "glossary_cache_entries": glossary.cache_size(),
     }
 
 
@@ -138,7 +143,7 @@ def generate_endpoint(req: GenerateRequest):
         ok=True, sql=sp.sql, raw_sql=sp.raw_sql, explanation=sp.explanation,
         pruned_columns=sp.pruned_columns, limit_applied=sp.limit_applied,
         guardrail_ok=sp.guardrail_ok, guardrail_error=sp.guardrail_error,
-        usage=llm.get_usage(),
+        schema_source=sp.schema_source, usage=llm.get_usage(),
     )
 
 

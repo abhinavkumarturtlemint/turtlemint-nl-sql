@@ -240,6 +240,12 @@ if gen is not None:
             st.code(gen.get("raw_sql", ""), language="sql")
     else:
         st.markdown('<div class="tm-step">Step 3 · Review the SQL</div>', unsafe_allow_html=True)
+        # Show schema source badge
+        src = gen.get("schema_source", "catalog")
+        if src == "live_api":
+            st.success("🌐 Schema fetched live from OpenMetadata API")
+        elif src == "mixed":
+            st.info("🌐 Schema: live API (real tables) + catalog (dummy tables)")
         if gen.get("explanation"):
             st.info(gen["explanation"])
         st.text_area("SQL (you can edit it)", key="sql_editor", height=130)

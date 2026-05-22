@@ -1,25 +1,41 @@
-"""Orchestrator for the full agentic pipeline (QueryGPT pattern).
+"""Orchestrator for the full agentic pipeline.
 
-Three phases, matching the human-in-the-loop UX:
+New architecture (live API):
 
-  plan(question)         Prompt Enhancer -> retrieve (vector index) -> Intent
-                         Agent -> Table Agent. Returns tables for the user to
-                         CONFIRM. No SQL yet.
+  plan(question)      Prompt Enhancer
+                      → Semantic Layer (keyword routing, zero embeddings)
+                      → Intent Agent
+                      → Table Agent
+                      Returns confirmed tables. No SQL yet.
 
-  build_sql(q, tables)   Column Prune -> live schema (catalog) -> SQL Generator
-                         -> Guardrails. Returns previewable SQL.
+  build_sql(q, tables)
+                      ┌── For REAL tables (in openmetadata.TABLE_FQN_MAP):
+                      │     Call Turtlemint OpenMetadata API live
+                      │     → get context_string (schema + sample rows)
+                      │
+                      └── For DUMMY/fallback tables:
+                            Use hardcoded schema_catalog
+                      │
+                      ├── Column Prune Agent (dummy tables only)
+                      ├── Semantic context (business terms, examples)
+                      └── SQL Generator → Guardrails
 
-  format_result(...)     Result Formatter -> plain-English summary + chart hint.
+  format_result(...)  Result Formatter → plain-English summary + chart hint.
 """
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
-from app.backend import guardrails, knowledge, sql_generator
+from app.backend import glossary, guardrails, openmetadata, semantics, sql_generator
 from app.backend.agents import (column_prune, intent_agent, prompt_enhancer,
                                 result_formatter, table_agent)
 from app.backend.schema_catalog import schema_prompt_for, table_names
+
+
+# All known tables = dummy catalog tables + real OpenMetadata tables
+def _all_table_names() -> List[str]:
+    return list(dict.fromkeys(table_names() + openmetadata.known_tables()))
 
 
 @dataclass
@@ -31,24 +47,28 @@ class Plan:
     candidate_tables: List[str]
     selected_tables: List[str]
     reason: str
-    used_embeddings: bool
-    all_tables: List[str] = field(default_factory=table_names)
+    used_embeddings: bool          # always False; kept for API compatibility
+    all_tables: List[str] = field(default_factory=_all_table_names)
 
 
 def plan(question: str, previous: Optional[str] = None) -> Plan:
     enhanced = prompt_enhancer.enhance(question, previous)
-    retr = knowledge.retrieve(enhanced)
+
+    # Semantic layer: keyword-based routing, zero LLM/embedding calls
+    candidate_tables = semantics.get_tables(enhanced)
+
     intent = intent_agent.classify(enhanced)
-    tbl = table_agent.select(enhanced, retr.tables)
+    tbl = table_agent.select(enhanced, candidate_tables)
+
     return Plan(
         question=question,
         enhanced_question=enhanced,
         intent=intent["intent"],
         confidence=intent["confidence"],
-        candidate_tables=retr.tables,
+        candidate_tables=candidate_tables,
         selected_tables=tbl["tables"],
         reason=tbl["reason"],
-        used_embeddings=retr.used_embeddings,
+        used_embeddings=False,
     )
 
 
@@ -62,16 +82,58 @@ class SqlPlan:
     limit_applied: bool
     guardrail_ok: bool
     guardrail_error: Optional[str]
+    schema_source: str             # "live_api" | "catalog" | "mixed"
 
 
 def build_sql(question: str, tables: List[str], previous: Optional[str] = None) -> SqlPlan:
-    pruned = column_prune.prune(question, tables)
-    schema_text = schema_prompt_for(tables, pruned)
-    retr = knowledge.retrieve(question)
-    examples_text = knowledge.examples_block(retr.examples)
+    # ── Step 1: fetch schema ─────────────────────────────────────────────────
+    # Real tables  → call OpenMetadata API live (cached 5 min)
+    # Dummy tables → use hardcoded schema_catalog
+    real_contexts, dummy_tables = openmetadata.schema_prompt_for_real_tables(tables)
 
-    gen = sql_generator.generate_with(question, schema_text, examples_text, previous)
+    schema_parts: List[str] = []
+
+    # Live API schema (real tables) — already LLM-ready, injected as-is
+    if real_contexts:
+        schema_parts.append("=== LIVE SCHEMA FROM OPENMETADATA API ===")
+        schema_parts.extend(real_contexts)
+
+    # Fallback schema (dummy/unknown tables) — from hardcoded catalog
+    if dummy_tables:
+        pruned = column_prune.prune(question, dummy_tables)
+        schema_parts.append("=== CATALOG SCHEMA ===")
+        schema_parts.append(schema_prompt_for(dummy_tables, pruned))
+    else:
+        pruned = {}
+
+    schema_text = "\n\n".join(schema_parts)
+
+    # Determine schema source label for UI / audit
+    if real_contexts and not dummy_tables:
+        schema_source = "live_api"
+    elif real_contexts and dummy_tables:
+        schema_source = "mixed"
+    else:
+        schema_source = "catalog"
+
+    # ── Step 2: semantic context ─────────────────────────────────────────────
+    # Static semantic layer (YAML metrics + business terms + example SQL)
+    context_parts = [semantics.get_context_prompt(question)]
+
+    # Live glossary (OpenMetadata API) — real Turtlemint business definitions
+    # with exact SQL routing notes embedded (e.g. "OD → premiumdetails_netodpremium")
+    gloss = glossary.get_context(question)
+    if gloss:
+        context_parts.append(gloss)
+
+    context_text = "\n\n".join(p for p in context_parts if p)
+
+    # ── Step 3: generate SQL ─────────────────────────────────────────────────
+    gen = sql_generator.generate_with(question, schema_text, context_text, previous)
+
+    # ── Step 4: guardrails ───────────────────────────────────────────────────
     guard = guardrails.check(gen.sql)
+
     return SqlPlan(
         sql=guard.sql if guard.ok else "",
         raw_sql=gen.sql,
@@ -81,6 +143,7 @@ def build_sql(question: str, tables: List[str], previous: Optional[str] = None) 
         limit_applied=guard.limit_applied,
         guardrail_ok=guard.ok,
         guardrail_error=guard.error,
+        schema_source=schema_source,
     )
 
 

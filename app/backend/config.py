@@ -24,9 +24,9 @@ ENABLE_RESULT_FORMATTER = os.getenv("ENABLE_RESULT_FORMATTER", "true").lower() =
 MAX_QUERIES_PER_DAY = int(os.getenv("MAX_QUERIES_PER_DAY", "200"))
 
 # --- Database --------------------------------------------------------------
-# DB_BACKEND = "chdb"           -> embedded ClickHouse (dummy phase, no server)
-# DB_BACKEND = "clickhouse_http" -> real ClickHouse HTTP endpoint (real-data phase)
-DB_BACKEND = os.getenv("DB_BACKEND", "chdb")
+# DB_BACKEND = "api_duckdb"      -> OpenMetadata API + DuckDB in-memory (default)
+# DB_BACKEND = "clickhouse_http" -> real ClickHouse HTTP endpoint (production)
+DB_BACKEND = os.getenv("DB_BACKEND", "api_duckdb")
 DB_NAME = os.getenv("DB_NAME", "turtlemint")
 
 # Used only when DB_BACKEND == "clickhouse_http" (the production path).

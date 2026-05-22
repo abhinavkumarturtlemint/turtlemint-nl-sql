@@ -72,10 +72,5 @@ def get_client():
 
 
 def ensure_seeded() -> None:
-    """Seed the dummy data if the store is empty (first run on a fresh host)."""
-    from app.backend import executor
-    from app.data import seed
-    try:
-        executor.run("SELECT 1 FROM turtlemint.partner LIMIT 1")
-    except Exception:
-        seed.seed()
+    """No-op: data now comes live from the OpenMetadata API. No seeding needed."""
+    pass
