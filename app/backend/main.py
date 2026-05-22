@@ -103,8 +103,13 @@ def health():
         },
         "max_queries_per_day": config.MAX_QUERIES_PER_DAY,
         "openmetadata_tables": openmetadata.known_tables(),
+        "openmetadata_apis": {
+            "sample_data":    openmetadata.SAMPLE_URL,
+            "columns":        openmetadata.COLUMNS_URL,
+            "table_search":   openmetadata.TABLE_SEARCH_URL,
+            "glossary":       glossary.GLOSSARY_URL,
+        },
         "schema_cache": openmetadata.cache_status(),
-        "glossary_url": glossary.GLOSSARY_URL,
         "glossary_cache_entries": glossary.cache_size(),
     }
 
