@@ -134,8 +134,10 @@ def get_context_prompt(question: str) -> str:
         lines.append("\nBUSINESS TERM DEFINITIONS (use these exact SQL filters):")
         for bt in rel_terms:
             lines.append(f"  • \"{bt['term']}\": {bt['definition']}")
-            lines.append(f"    SQL filter → {bt['sql_filter']}"
-                         + (f"  (table: {bt['table']})" if bt.get("table") else ""))
+            sql_filter = bt.get("sql_filter", "")
+            if sql_filter:
+                lines.append(f"    SQL filter → {sql_filter}"
+                             + (f"  (table: {bt.get('table', '')})" if bt.get("table") else ""))
 
     # --- Similar example questions ------------------------------------------
     # Score examples by word-overlap with the question
