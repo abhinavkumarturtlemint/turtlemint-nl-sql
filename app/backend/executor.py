@@ -194,7 +194,7 @@ def _run_api_duckdb(sql: str) -> QueryResult:
                     # Try datetime for columns with date-like names
                     if any(kw in col.lower() for kw in ("date", "at", "time", "dt")):
                         try:
-                            dt = pd.to_datetime(df[col], errors="coerce")
+                            dt = pd.to_datetime(df[col], errors="coerce", format="mixed")
                             if dt.notna().sum() > 0:
                                 df[col] = dt
                                 continue
