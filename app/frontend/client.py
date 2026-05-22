@@ -32,7 +32,13 @@ class HttpClient:
 
     def post(self, path: str, payload: Dict, timeout: int = 120) -> Dict:
         try:
-            return requests.post(f"{self.base}{path}", json=payload, timeout=timeout).json()
+            resp = requests.post(f"{self.base}{path}", json=payload, timeout=timeout)
+            try:
+                return resp.json()
+            except ValueError:
+                # Backend returned non-JSON (e.g. a 500 plain-text error)
+                snippet = resp.text[:300] if resp.text else "empty response"
+                return {"ok": False, "error": f"Backend error (HTTP {resp.status_code}): {snippet}"}
         except requests.RequestException as e:
             return {"ok": False, "error": f"Cannot reach backend at {self.base}: {e}"}
 
