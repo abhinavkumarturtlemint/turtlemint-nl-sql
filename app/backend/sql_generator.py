@@ -37,9 +37,10 @@ You MUST search ALL relevant name columns using OR so you never miss a match:
   • Area Manager                        → salesdetail_am
   • Relationship Manager (RM)           → salesdetail_rm
   • Sales Manager (SM)                  → salesdetail_sm
-When the role is unknown, ALWAYS combine with OR:
+When the role is unknown, ALWAYS combine with OR and use ILIKE with % wildcards (never =):
   WHERE lower(salesdetail_intermediaryname) ILIKE '%full name%'
      OR (lower(proposer_fname) ILIKE '%first%' AND lower(proposer_lname) ILIKE '%last%')
+Do NOT use = for name comparisons — always use ILIKE '%...%' so partial matches work.
 Do NOT search only proposer_fname/proposer_lname — that will miss partners and agents."""
 
 

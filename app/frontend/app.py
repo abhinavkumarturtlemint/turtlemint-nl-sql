@@ -270,6 +270,18 @@ if run is not None:
         st.markdown('<div class="tm-step">Step 4 · Answer</div>', unsafe_allow_html=True)
         if run.get("summary"):
             st.success(run["summary"])
+
+        # Warn when 0 rows returned in sample-data mode
+        if run["row_count"] == 0:
+            st.warning(
+                "⚠️ **0 rows found** — but this may not mean the record doesn't exist.\n\n"
+                "The current mode (**api_duckdb**) searches only the **25 sample rows** "
+                "returned by the OpenMetadata API, not the full ClickHouse database. "
+                "The person or record you're looking for may exist in the full dataset.\n\n"
+                "👉 To search the full database, engineering needs to set "
+                "`DB_BACKEND=clickhouse_http` with real ClickHouse credentials."
+            )
+
         m1, m2, m3 = st.columns(3)
         m1.metric("Rows", run["row_count"])
         m2.metric("Time", f"{run['latency_ms']} ms")
