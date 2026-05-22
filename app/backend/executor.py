@@ -77,13 +77,20 @@ def _fetch_api_data(table_name: str) -> List[dict]:
 
 
 def _extract_table_names(sql: str) -> List[str]:
-    """Pull all table references from a SQL string (handles db.table format)."""
-    # Match  FROM x.y, JOIN x.y, FROM y, JOIN y
-    pattern = r"(?:FROM|JOIN)\s+([\w]+\.[\w]+|[\w]+)"
+    """Pull all table references from a SQL string (handles multi-level FQNs with hyphens).
+
+    Examples handled:
+      FROM policydetail
+      FROM spectrum.policydetail
+      FROM ch-spectrum.spectrum.spectrum.policydetail
+    Always returns just the final table name (last dot-separated segment).
+    """
+    # Allow hyphens in each segment (ch-spectrum is a valid ClickHouse db name)
+    pattern = r"(?:FROM|JOIN)\s+((?:[\w\-]+\.)*[\w]+)"
     matches = re.findall(pattern, sql, re.IGNORECASE)
     tables = []
     for m in matches:
-        # Strip database prefix: spectrum.policydetail → policydetail
+        # Take only the last segment: ch-spectrum.spectrum.spectrum.policydetail → policydetail
         parts = m.split(".")
         tables.append(parts[-1].lower())
     return list(dict.fromkeys(tables))  # unique, preserve order
@@ -104,10 +111,13 @@ def _adapt_sql_for_duckdb(sql: str) -> str:
     """
     adapted = sql
 
-    # Strip database prefix from table references (turtlemint.X or spectrum.X → X)
+    # Strip any multi-level FQN prefix in FROM/JOIN clauses.
+    # Handles: ch-spectrum.spectrum.spectrum.policydetail → policydetail
+    #          spectrum.policydetail → policydetail
+    #          turtlemint.policy → policy
     adapted = re.sub(
-        r'\b(?:turtlemint|spectrum)\.([\w]+)\b',
-        r'\1',
+        r'\b(FROM|JOIN)\s+((?:[\w\-]+\.)+)([\w]+)',
+        lambda m: f"{m.group(1)} {m.group(3)}",
         adapted,
         flags=re.IGNORECASE,
     )
