@@ -46,7 +46,7 @@ metrics:
   - name: health_premium_by_state
     label: "Health Premium by State"
     description: "Total health insurance premium grouped by customer state"
-    tables: [policy, customer]
+    tables: [policydetail]
     keywords: [health premium, state, health by state, geography, region]
 
   - name: policy_lapse
@@ -58,8 +58,14 @@ metrics:
   - name: customer_demographics
     label: "Customer Demographics"
     description: "Customer breakdown by state, age, or gender"
-    tables: [customer]
+    tables: [policydetail]
     keywords: [customer, demographics, age, gender, location, state, customers]
+
+  - name: client_lookup
+    label: "Client / Customer Lookup"
+    description: "Look up a specific client or customer by name, ID, or phone. Customer first name is proposer_fname, last name is proposer_lname, customer ID is customerid."
+    tables: [policydetail]
+    keywords: [client, insured, proposer, policy holder, policyholder, person, individual, name, customer name, client name, give details, details of]
 
   # ── Real Turtlemint policydetail metrics (spectrum.policydetail) ──────────
 
@@ -161,7 +167,7 @@ dimensions:
 
   - name: state
     label: "State"
-    table: customer
+    table: policydetail
     column: state
     keywords: [state, region, location, geography, city]
 
@@ -245,6 +251,11 @@ business_terms:
     sql_filter: "premiumdetails_grosspremium"
     table: policydetail
     keywords: [gross premium, gwp, total premium]
+
+  - term: "customer name / client name"
+    definition: "Customer full name is stored as proposer_fname (first name) + proposer_lname (last name) in policydetail. To search by name use: lower(proposer_fname) ILIKE '%first%' AND lower(proposer_lname) ILIKE '%last%'. Customer ID is customerid. Client ID is clientid."
+    table: policydetail
+    keywords: [client, customer name, insured, proposer, policy holder, name, person]
 
 
 example_questions:
@@ -345,3 +356,25 @@ example_questions:
              sum(premiumdetails_grosspremium) AS total_premium
       FROM spectrum.policydetail
       GROUP BY businesstype
+
+  - question: "Give details of client Mahjabin Khatun"
+    tables: [policydetail]
+    sql: >
+      SELECT customerid, clientid, proposer_fname, proposer_lname,
+             proposer_mobile, proposer_email, insurer, vertical,
+             businesstype, substatus, premiumdetails_grosspremium,
+             riskstartdate, riskenddate
+      FROM spectrum.policydetail
+      WHERE lower(proposer_fname) ILIKE '%mahjabin%'
+        AND lower(proposer_lname) ILIKE '%khatun%'
+      LIMIT 1000
+
+  - question: "Show all policies for customer ID C12345"
+    tables: [policydetail]
+    sql: >
+      SELECT customerid, proposer_fname, proposer_lname, insurer,
+             vertical, businesstype, substatus, premiumdetails_grosspremium,
+             riskstartdate, riskenddate
+      FROM spectrum.policydetail
+      WHERE customerid = 'C12345'
+      LIMIT 1000
