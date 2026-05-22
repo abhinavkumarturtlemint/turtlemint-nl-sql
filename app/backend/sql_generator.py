@@ -27,7 +27,20 @@ DELETE, DROP, ALTER or any statement that changes data.
 - "explanation" is one or two plain-English sentences a non-technical user can \
 understand. Do not mention SQL keywords in it.
 - If the question cannot be answered from the schema, return a best-effort SELECT \
-and explain the limitation in "explanation"."""
+and explain the limitation in "explanation".
+
+CRITICAL — Name / person lookups in policydetail:
+A person's name can appear in MULTIPLE columns depending on their role. \
+You MUST search ALL relevant name columns using OR so you never miss a match:
+  • Partner / agent / DP / intermediary → salesdetail_intermediaryname  (full name, one field)
+  • Customer / proposer / insured       → proposer_fname AND proposer_lname (two separate fields)
+  • Area Manager                        → salesdetail_am
+  • Relationship Manager (RM)           → salesdetail_rm
+  • Sales Manager (SM)                  → salesdetail_sm
+When the role is unknown, ALWAYS combine with OR:
+  WHERE lower(salesdetail_intermediaryname) ILIKE '%full name%'
+     OR (lower(proposer_fname) ILIKE '%first%' AND lower(proposer_lname) ILIKE '%last%')
+Do NOT search only proposer_fname/proposer_lname — that will miss partners and agents."""
 
 
 @dataclass
