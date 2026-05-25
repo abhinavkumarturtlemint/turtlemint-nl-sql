@@ -293,6 +293,48 @@ metrics:
     tables: [loanoffers]
     keywords: [processing fee, fees, lender fee, offer fee, processing charges, fee comparison]
 
+  - name: credit_utilization_analysis
+    label: "Credit Utilization & Limit Analysis"
+    description: "CRIF bureau metrics: total credit limit, credit utilization %, unique credit accounts, total payments in 3 years (all under leadcustomerinfo_creditinfocrif_* columns)"
+    tables: [leadorderinfo]
+    keywords: [credit utilization, credit limit, total credit, utilization, credit used, outstanding credit, unique accounts, utilization percentage, credit exposure, total payments, payment history 3 years]
+
+  - name: loan_rejection_reasons
+    label: "Loan Rejection Reasons"
+    description: "Why loan leads were rejected — breakdown by rejection reason (leadextrainfo_additionaldetails_rejectionreason): Credit Reject-Scorecard, Model Reject, Obligations based, Recent delinquency"
+    tables: [leadorderinfo]
+    keywords: [rejection reason, why rejected, reject reason, scorecard, model reject, obligations, delinquency, reason for rejection, credit reject, rejection analysis]
+
+  - name: user_quality_analysis
+    label: "User Quality Segment Analysis"
+    description: "Breakdown of leads by user quality segment: Prime, Sub_Prime, REJECTS (leadextrainfo_additionaldetails_userquality)"
+    tables: [leadorderinfo]
+    keywords: [prime user, sub prime, rejects, user quality, user segment, prime leads, sub-prime leads, quality segment, customer segment]
+
+  - name: credit_risk_flags
+    label: "Credit Risk Flag Analysis"
+    description: "Count of applicants with adverse credit events: settlement (hassettlement=True), suit filed (hassuitfilled=True), write-off (haswriteoff=True) from CRIF bureau"
+    tables: [leadorderinfo, loanoffers]
+    keywords: [settlement, suit filed, write off, writeoff, credit risk, adverse credit, bad credit history, default, settled account, written off]
+
+  - name: pre_approval_analysis
+    label: "Pre-Approved Lead Analysis"
+    description: "Leads where a pre-approved loan amount was offered (leadextrainfo_additionaldetails_preapprovedvalue > 0)"
+    tables: [leadorderinfo]
+    keywords: [pre approved, preapproved, pre approval, approved in advance, pre-approved amount, instant approval, preapprovedvalue]
+
+  - name: offer_route_analysis
+    label: "Offer Route Analysis (GRID vs IHUB)"
+    description: "Breakdown of loan offers by routing mechanism: GRID (eligibility grid) vs IHUB (lender API hub) — offer_route column in loanoffers"
+    tables: [loanoffers]
+    keywords: [ihub, grid, offer route, grid route, ihub route, routing, how offer processed, lender routing, grid offers, ihub offers]
+
+  - name: broker_tenant_analysis
+    label: "Broker & Tenant Platform Analysis"
+    description: "Loan leads broken down by broker (turtlemint/turtlefin/centralbank) or tenant/platform (flipkart/nsdl/turtlemint/itsEazr)"
+    tables: [leadorderinfo]
+    keywords: [broker, tenant, platform, turtlefin, centralbank, flipkart, nsdl, itseazr, which platform, broker leads, by broker, by tenant]
+
 
 dimensions:
 
@@ -445,15 +487,50 @@ dimensions:
     label: "Offer Status"
     table: loanoffers
     column: offer_status
-    values: [success, reject]
-    keywords: [offer status, offer approved, offer rejected, offer result, successful offer, rejected offer]
+    values: [success, reject, expired, failure]
+    keywords: [offer status, offer approved, offer rejected, offer result, successful offer, rejected offer, expired offer, failed offer]
 
   - name: lender
     label: "Lender / Provider"
     table: loanoffers
     column: offer_provider
-    values: [smfg, kissht, moneyview, pfl, stashfin, herofincorp]
-    keywords: [lender, provider, smfg, kissht, moneyview, pfl, stashfin, herofincorp, which lender, offer provider]
+    values: [smfg, kissht, moneyview, pfl, stashfin, herofincorp, creditSaison]
+    keywords: [lender, provider, smfg, kissht, moneyview, pfl, stashfin, herofincorp, creditsaison, which lender, offer provider]
+
+  - name: offer_route
+    label: "Offer Route"
+    table: loanoffers
+    column: offer_route
+    values: [IHUB, GRID]
+    keywords: [offer route, ihub, grid, grid route, ihub route, how offer was processed, routing]
+
+  - name: broker_dim
+    label: "Broker"
+    table: leadorderinfo
+    column: broker
+    values: [turtlemint, turtlefin, centralbank]
+    keywords: [broker, turtlefin, centralbank, which broker, broker name]
+
+  - name: tenant_dim
+    label: "Tenant / Platform"
+    table: leadorderinfo
+    column: tenant
+    values: [turtlemint, turtlefin, centralbank, flipkart, nsdl, itsEazr]
+    keywords: [tenant, platform, flipkart, nsdl, which platform, turtlefin, itsEazr]
+
+  - name: rejection_reason
+    label: "Loan Rejection Reason"
+    table: leadorderinfo
+    column: leadextrainfo_additionaldetails_rejectionreason
+    values: [Credit Reject - Scorecard, Model Reject, Obligations based, Recent delinquency dpd30]
+    keywords: [rejection reason, why rejected, reject reason, scorecard reject, model reject, obligations, delinquency, credit reject, reason for rejection]
+
+  - name: user_quality
+    label: "User Quality Segment"
+    table: leadorderinfo
+    column: leadextrainfo_additionaldetails_userquality
+    values: [Prime, Sub_Prime, REJECTS]
+    keywords: [user quality, prime, sub prime, sub-prime, rejects, user segment, quality segment]
 
 
 business_terms:
@@ -768,6 +845,60 @@ business_terms:
     definition: "Names are stored in MULTIPLE columns in policydetail — choose the right one: (1) Partner / agent / DP / intermediary: use salesdetail_intermediaryname (stores full name as one string, e.g. 'mahjabin khatun'). (2) Customer / proposer / insured: use proposer_fname AND proposer_lname (split into two columns). (3) Area Manager: salesdetail_am. (4) RM / Relationship Manager: salesdetail_rm. (5) SM: salesdetail_sm. When the person's role is unknown, search ALL name columns with OR: lower(salesdetail_intermediaryname) ILIKE '%name%' OR lower(proposer_fname) ILIKE '%name%'."
     table: policydetail
     keywords: [client, customer name, insured, proposer, policy holder, name, person, partner name, agent, intermediary, give details, details of]
+
+  - term: "has settlement"
+    definition: "Applicant has a settled credit account on CRIF bureau — leadcustomerinfo_creditinfocrif_hassettlement = 'True'. Indicates past debt settlement, a negative credit signal."
+    sql_filter: "leadcustomerinfo_creditinfocrif_hassettlement = 'True'"
+    table: leadorderinfo
+    keywords: [settlement, has settlement, settled account, debt settled, credit settlement, settled loan]
+
+  - term: "has suit filed"
+    definition: "A legal suit has been filed against the applicant by a lender — leadcustomerinfo_creditinfocrif_hassuitfilled = 'True'. Severe adverse credit flag."
+    sql_filter: "leadcustomerinfo_creditinfocrif_hassuitfilled = 'True'"
+    table: leadorderinfo
+    keywords: [suit filed, has suit, legal suit, lender suit, suit against, court case credit]
+
+  - term: "has write-off"
+    definition: "Applicant has a written-off account on CRIF bureau — leadcustomerinfo_creditinfocrif_haswriteoff = 'True'. Indicates a lender has written off the debt as uncollectible."
+    sql_filter: "leadcustomerinfo_creditinfocrif_haswriteoff = 'True'"
+    table: leadorderinfo
+    keywords: [write off, written off, writeoff, has writeoff, bad debt, charge off, debt written off]
+
+  - term: "prime quality"
+    definition: "User quality segment = 'Prime' — highest-quality applicant profile (leadextrainfo_additionaldetails_userquality = 'Prime')"
+    sql_filter: "leadextrainfo_additionaldetails_userquality = 'Prime'"
+    table: leadorderinfo
+    keywords: [prime, prime quality, prime user, prime customer, prime applicant, high quality user]
+
+  - term: "sub-prime"
+    definition: "User quality segment = 'Sub_Prime' — below-prime but potentially approvable (leadextrainfo_additionaldetails_userquality = 'Sub_Prime')"
+    sql_filter: "leadextrainfo_additionaldetails_userquality = 'Sub_Prime'"
+    table: leadorderinfo
+    keywords: [sub prime, sub-prime, subprime, sub prime user, below prime, sub prime applicant]
+
+  - term: "IHUB route"
+    definition: "Loan offer processed via IHUB — real-time lender API integration hub (offer_route = 'IHUB' in loanoffers)"
+    sql_filter: "offer_route = 'IHUB'"
+    table: loanoffers
+    keywords: [ihub, ihub route, api hub, lender api, ihub offer, real time lender, ihub routing]
+
+  - term: "GRID route"
+    definition: "Loan offer processed via GRID — eligibility grid (rule-based pre-screening) before live API (offer_route = 'GRID' in loanoffers)"
+    sql_filter: "offer_route = 'GRID'"
+    table: loanoffers
+    keywords: [grid, grid route, eligibility grid, grid offer, rule based offer, grid routing, grid based]
+
+  - term: "pre-approved lead"
+    definition: "A loan lead where the applicant received a pre-approved loan amount (leadextrainfo_additionaldetails_preapprovedvalue > 0). Pre-approval means Turtlemint estimated a loan value before lender check."
+    sql_filter: "toFloat64OrNull(leadextrainfo_additionaldetails_preapprovedvalue) > 0"
+    table: leadorderinfo
+    keywords: [pre approved, preapproved, pre approval, pre approved amount, instant approval, preapprovedvalue, approved in advance]
+
+  - term: "expired offer"
+    definition: "A lender offer that expired before the applicant could act — offer_status = 'expired'"
+    sql_filter: "offer_status = 'expired'"
+    table: loanoffers
+    keywords: [expired offer, offer expired, timed out offer, offer timeout, lapsed offer, expiry]
 
 
 example_questions:
@@ -1299,4 +1430,95 @@ example_questions:
       WHERE productcode IS NOT NULL
         AND productcode != ''
       GROUP BY productcode
+      ORDER BY lead_count DESC
+
+  # ── New metric examples: CRIF, rejection, user quality, route, broker ─────
+
+  - question: "What is the average credit utilization of loan applicants?"
+    tables: [leadorderinfo]
+    sql: >
+      SELECT
+        round(avg(toFloat64OrNull(leadcustomerinfo_creditinfocrif_totalcreditutilized)), 0) AS avg_credit_utilized,
+        round(avg(toFloat64OrNull(leadcustomerinfo_creditinfocrif_totalcreditlimit)), 0) AS avg_credit_limit,
+        round(100.0 * avg(toFloat64OrNull(leadcustomerinfo_creditinfocrif_totalcreditutilized))
+              / nullIf(avg(toFloat64OrNull(leadcustomerinfo_creditinfocrif_totalcreditlimit)), 0), 2) AS utilization_pct,
+        round(avg(toFloat64OrNull(leadcustomerinfo_creditinfocrif_uniquecreditaccounts)), 1) AS avg_unique_accounts
+      FROM sachet.leadorderinfo
+      WHERE leadcustomerinfo_creditinfocrif_totalcreditlimit IS NOT NULL
+        AND leadcustomerinfo_creditinfocrif_totalcreditlimit != '0'
+
+  - question: "What are the top reasons loan leads are rejected?"
+    tables: [leadorderinfo]
+    sql: >
+      SELECT leadextrainfo_additionaldetails_rejectionreason AS rejection_reason,
+             count(*) AS lead_count,
+             round(100.0 * count(*) / sum(count(*)) OVER (), 2) AS pct
+      FROM sachet.leadorderinfo
+      WHERE leadextrainfo_additionaldetails_rejectionreason IS NOT NULL
+        AND leadextrainfo_additionaldetails_rejectionreason != ''
+      GROUP BY rejection_reason
+      ORDER BY lead_count DESC
+
+  - question: "Breakdown of leads by user quality segment (Prime, Sub_Prime, REJECTS)"
+    tables: [leadorderinfo]
+    sql: >
+      SELECT leadextrainfo_additionaldetails_userquality AS user_quality,
+             count(*) AS lead_count,
+             round(100.0 * count(*) / sum(count(*)) OVER (), 2) AS pct
+      FROM sachet.leadorderinfo
+      WHERE leadextrainfo_additionaldetails_userquality IS NOT NULL
+        AND leadextrainfo_additionaldetails_userquality != ''
+      GROUP BY user_quality
+      ORDER BY lead_count DESC
+
+  - question: "How many applicants have a credit settlement, suit filed, or write-off on their bureau?"
+    tables: [leadorderinfo]
+    sql: >
+      SELECT
+        countIf(leadcustomerinfo_creditinfocrif_hassettlement = 'True') AS has_settlement,
+        countIf(leadcustomerinfo_creditinfocrif_hassuitfilled = 'True') AS has_suit_filed,
+        countIf(leadcustomerinfo_creditinfocrif_haswriteoff = 'True') AS has_writeoff,
+        countIf(leadcustomerinfo_creditinfocrif_hassettlement = 'True'
+                OR leadcustomerinfo_creditinfocrif_hassuitfilled = 'True'
+                OR leadcustomerinfo_creditinfocrif_haswriteoff = 'True') AS any_adverse_flag,
+        count(*) AS total_with_bureau_data
+      FROM sachet.leadorderinfo
+      WHERE leadcustomerinfo_creditinfocrif_creditscore IS NOT NULL
+        AND leadcustomerinfo_creditinfocrif_creditscore != ''
+
+  - question: "How many leads have a pre-approved loan amount and what is the average pre-approval value?"
+    tables: [leadorderinfo]
+    sql: >
+      SELECT
+        countIf(toFloat64OrNull(leadextrainfo_additionaldetails_preapprovedvalue) > 0) AS preapproved_leads,
+        round(avg(toFloat64OrNull(leadextrainfo_additionaldetails_preapprovedvalue))
+              FILTER (WHERE toFloat64OrNull(leadextrainfo_additionaldetails_preapprovedvalue) > 0), 0) AS avg_preapproved_value,
+        count(*) AS total_leads
+      FROM sachet.leadorderinfo
+
+  - question: "What is the GRID vs IHUB offer split by lender?"
+    tables: [loanoffers]
+    sql: >
+      SELECT offer_provider,
+             countIf(offer_route = 'GRID') AS grid_offers,
+             countIf(offer_route = 'IHUB') AS ihub_offers,
+             count(*) AS total_offers,
+             round(100.0 * countIf(offer_route = 'GRID') / count(*), 2) AS grid_pct
+      FROM sachet.loanoffers
+      WHERE offer_route IS NOT NULL
+        AND offer_route != ''
+      GROUP BY offer_provider
+      ORDER BY total_offers DESC
+
+  - question: "Loan lead volume by broker and tenant platform"
+    tables: [leadorderinfo]
+    sql: >
+      SELECT broker,
+             tenant,
+             count(*) AS lead_count,
+             round(avg(toFloat64OrNull(leadcustomerinfo_loanamount)), 0) AS avg_loan_amount
+      FROM sachet.leadorderinfo
+      WHERE broker IS NOT NULL
+        AND broker != ''
+      GROUP BY broker, tenant
       ORDER BY lead_count DESC
