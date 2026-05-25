@@ -90,7 +90,21 @@ Three name fields exist — always search ALL of them with OR when looking up a 
   • leadcustomerinfo_adhaarcustomername — name as per Aadhaar card
   • leadcustomerinfo_firstname + leadcustomerinfo_lastname — split name fields
 Example: WHERE lower(leadcustomerinfo_customername) ILIKE '%mohd nifasat%'
-            OR lower(leadcustomerinfo_adhaarcustomername) ILIKE '%mohd nifasat%'"""
+            OR lower(leadcustomerinfo_adhaarcustomername) ILIKE '%mohd nifasat%'
+
+CRITICAL — leadname is a SYSTEM identifier, NOT a customer name:
+The column 'leadname' in leadorderinfo stores a system-generated code in the format \
+{productCode}_{externalLeadId}, e.g. 'mobile_AH59FO682DT' or 'personal-loan_XYZ123'.
+  • When the user provides a value like 'mobile_AH59FO682DT' → use WHERE leadname = 'mobile_AH59FO682DT'
+  • NEVER search leadcustomerinfo_customername or name fields for a leadname value
+  • leadname values are alphanumeric codes with underscores — they are NOT human names
+
+CRITICAL — MongoDB ObjectId lookups:
+The '_id' column in leadorderinfo and loanoffers is a 24-character hex string \
+(e.g. '655c59447d2e666a6b589bca').
+  • When the user provides a 24-char hex string as an ID → search leadorderinfo._id, NOT policydetail
+  • policydetail uses completely different ID formats (integer customerid, policy numbers)
+  • MongoDB ObjectId format (24-char hex) ALWAYS belongs to sachet tables (leadorderinfo / loanoffers)"""
 
 
 @dataclass

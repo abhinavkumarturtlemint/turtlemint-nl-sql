@@ -361,9 +361,9 @@ metrics:
 
   - name: partner_application_lookup
     label: "Partner / Lender Application ID Lookup"
-    description: "Look up a lead by lender-assigned application ID (partnerapplicationid, e.g. SMFGPL025300) or Turtlemint referenceid or aggregatorid. Useful when a lender provides their own application number for tracking."
+    description: "Look up a lead by any system identifier: leadname (format: productCode_externalLeadId e.g. mobile_AH59FO682DT), MongoDB _id (24-char hex), externalleadid, referenceid, aggregatorid, or lender-assigned partnerapplicationid. IMPORTANT: leadname is a system code, NOT a customer name — always use WHERE leadname = '<value>' for exact match."
     tables: [loanoffers, leadorderinfo]
-    keywords: [partner application id, partnerapplicationid, lender application id, smfg application, lender ref, lender id, application number, smfgpl, application reference, lender application number]
+    keywords: [partner application id, partnerapplicationid, lender application id, smfg application, lender ref, lender id, application number, smfgpl, application reference, lender application number, leadname, lead name, mobile_, personal-loan_, externalleadid, external lead id, lead id, find lead, lookup lead, find by id, record id, document id, mongo id, 655c, AH59, find all information about]
 
 
 dimensions:
@@ -1633,3 +1633,42 @@ example_questions:
         AND broker != ''
       GROUP BY broker, tenant
       ORDER BY lead_count DESC
+
+  # ── Record lookup by system identifiers ──────────────────────────────────
+  # leadname is a SYSTEM identifier (format: productCode_externalLeadId).
+  # It is NOT a customer name. Use WHERE leadname = '...' for exact lookup.
+  # _id is the MongoDB ObjectId (24-char hex). NEVER search policydetail for it.
+
+  - question: "Find the lead with leadname mobile_AH59FO682DT"
+    tables: [leadorderinfo]
+    sql: >
+      SELECT _id, leadname, externalleadid, leadid, productcode, leadstage, leadstatus,
+             leadcustomerinfo_customername, leadcustomerinfo_mobilenumber,
+             leadcustomerinfo_pan, leadcustomerinfo_city, leadcustomerinfo_loanamount,
+             createdat, updatedat, provider, partnerid, tenant
+      FROM sachet.leadorderinfo
+      WHERE leadname = 'mobile_AH59FO682DT'
+      LIMIT 10
+
+  - question: "Show me all details for lead ID 655c59447d2e666a6b589bca"
+    tables: [leadorderinfo]
+    sql: >
+      SELECT _id, leadname, externalleadid, leadid, productcode, leadstage, leadstatus,
+             leadcustomerinfo_customername, leadcustomerinfo_mobilenumber,
+             leadcustomerinfo_pan, leadcustomerinfo_city, leadcustomerinfo_loanamount,
+             createdat, updatedat, provider, partnerid, tenant, broker
+      FROM sachet.leadorderinfo
+      WHERE _id = '655c59447d2e666a6b589bca'
+      LIMIT 10
+
+  - question: "Find all information about customer with external lead ID AH59FO682DT"
+    tables: [leadorderinfo]
+    sql: >
+      SELECT _id, leadname, externalleadid, leadid, productcode, leadstage, leadstatus,
+             leadcustomerinfo_customername, leadcustomerinfo_mobilenumber,
+             leadcustomerinfo_pan, leadcustomerinfo_city, leadcustomerinfo_loanamount,
+             journey_journeytype, createdat, updatedat, provider, partnerid, tenant
+      FROM sachet.leadorderinfo
+      WHERE externalleadid = 'AH59FO682DT'
+         OR referenceid = 'AH59FO682DT'
+      LIMIT 10

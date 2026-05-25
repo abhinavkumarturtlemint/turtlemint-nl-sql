@@ -233,6 +233,8 @@ def bson_schema_context(table_name: str) -> str:
     hardcoded in schema_catalog) so the LLM can answer ANY question.
     Filters to columns with at least 1% non-null values to skip junk.
     For low-cardinality string columns (<= 20 unique values) shows samples.
+    Enriches each column with its human-readable description from schema_catalog
+    so the LLM understands column semantics (e.g. leadname vs customer name).
     """
     import pandas as pd
 
@@ -247,6 +249,18 @@ def bson_schema_context(table_name: str) -> str:
 
     n = len(df)
     min_present = max(1, n * 0.01)   # column must have >= 1% non-null rows
+
+    # Build column description map from schema_catalog so the LLM knows
+    # what each column means (e.g. leadname = system identifier, NOT customer name)
+    try:
+        from app.backend.schema_catalog import get_table as _get_table
+        col_descs: dict = {}
+        tbl_meta = _get_table(name)
+        if tbl_meta:
+            for col_def in tbl_meta.get("columns", []):
+                col_descs[col_def["name"].lower()] = col_def.get("description", "")
+    except Exception:
+        col_descs = {}
 
     # Table header
     db_map = {"leadorderinfo": "sachet", "loanoffers": "sachet"}
@@ -303,7 +317,11 @@ def bson_schema_context(table_name: str) -> str:
             sample = f"  range: {mn} – {mx}"
 
         pct = int(100 * non_null / n)
-        lines.append(f"  {col} ({dtype_label}, {pct}% filled){sample}")
+        # Append catalog description if available — critical so the LLM knows
+        # e.g. that 'leadname' is a system ID (mobile_AH59FO682DT), not a customer name
+        cat_desc = col_descs.get(col.lower(), "")
+        desc_suffix = f"  — {cat_desc}" if cat_desc else ""
+        lines.append(f"  {col} ({dtype_label}, {pct}% filled){sample}{desc_suffix}")
 
     result = "\n".join(lines)
     _bson_schema_cache[name] = result

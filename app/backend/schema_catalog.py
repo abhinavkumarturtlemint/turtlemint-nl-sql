@@ -161,9 +161,10 @@ CATALOG: Dict = {
             ),
             "order_by": "_id",
             "columns": [
-                {"name": "_id",                               "type": "String",            "description": "MongoDB document ID."},
+                {"name": "_id",                               "type": "String",            "description": "MongoDB document ID — 24-character hex string (e.g. '655c59447d2e666a6b589bca'). Primary key. When a user provides a long hex string as a customer/lead identifier, search this column in leadorderinfo, NOT in policydetail."},
                 {"name": "externalleadid",                    "type": "String",            "description": "External reference ID for this lead (alphanumeric, e.g. AH59FO682DT). Same as referenceid in most cases."},
                 {"name": "leadid",                            "type": "String",            "description": "Internal Turtlemint lead ID (short alphanumeric, e.g. H59FO6AWAV)."},
+                {"name": "leadname",                          "type": "String",            "description": "System-generated lead identifier. Format: {productCode}_{externalLeadId} (e.g. 'mobile_AH59FO682DT', 'personal-loan_AH59FO682DT'). IMPORTANT: This is NOT a customer name — do NOT search name fields for this value. When user provides a code like 'mobile_XXXX' or 'personal-loan_XXXX', use WHERE leadname = '<value>'."},
                 {"name": "uniqueid",                          "type": "String",            "description": "UUID-format unique customer/session identifier (e.g. c7c74516-1b7b-45a5-9eaa-b6319cb92044)."},
                 {"name": "aggregatorid",                      "type": "String",            "description": "Customer-level aggregator ID — remains CONSISTENT across all lenders for the same customer journey (e.g. AHB02UYGW02). Use this to track a customer across lenders."},
                 {"name": "referenceid",                       "type": "String",            "description": "Lender-specific reference ID — unique per lender/lead (e.g. AH59FO682DT). Different lenders get different reference IDs for the same customer. Distinguished from aggregatorid which is customer-level."},
