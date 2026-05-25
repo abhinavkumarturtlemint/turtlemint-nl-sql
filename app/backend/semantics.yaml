@@ -209,6 +209,12 @@ metrics:
     tables: [leadorderinfo]
     keywords: [journey type, assisted, direct, self-serve, partner assisted, journey]
 
+  - name: loan_customer_lookup
+    label: "Loan Customer / Lead Lookup"
+    description: "Look up a loan applicant by PAN, mobile number, name, or lead ID. Returns contact details, loan amount, credit score, lead stage. Use leadorderinfo. Key columns: leadcustomerinfo_customername, leadcustomerinfo_mobilenumber, leadcustomerinfo_pan, leadcustomerinfo_creditscore, leadcustomerinfo_loanamount, leadstage, provider, partnerid."
+    tables: [leadorderinfo]
+    keywords: [pan, pan number, mobile, phone number, phone, mobile number, contact, lead id, loan applicant, loan customer, find person, person with pan, person with mobile, who is, details of loan, sachet customer, sachet lead]
+
 
 dimensions:
 
@@ -611,3 +617,46 @@ example_questions:
       FROM sachet.leadorderinfo
       GROUP BY leadcustomerinfo_employmenttype
       ORDER BY lead_count DESC
+
+  - question: "What is the phone number of the person with PAN ABCDE1234F?"
+    tables: [leadorderinfo]
+    sql: >
+      SELECT leadcustomerinfo_customername,
+             leadcustomerinfo_mobilenumber,
+             leadcustomerinfo_pan,
+             leadcustomerinfo_city,
+             leadcustomerinfo_employmenttype,
+             leadcustomerinfo_loanamount,
+             leadcustomerinfo_creditscore,
+             leadstage, provider, partnerid, createdat
+      FROM sachet.leadorderinfo
+      WHERE leadcustomerinfo_pan = 'ABCDE1234F'
+      LIMIT 100
+
+  - question: "Give me details of the loan applicant with mobile number 9876543210"
+    tables: [leadorderinfo]
+    sql: >
+      SELECT leadcustomerinfo_customername,
+             leadcustomerinfo_mobilenumber,
+             leadcustomerinfo_pan,
+             leadcustomerinfo_city,
+             leadcustomerinfo_loanamount,
+             leadcustomerinfo_creditscore,
+             leadcustomerinfo_employmenttype,
+             leadstage, provider, partnerid, createdat
+      FROM sachet.leadorderinfo
+      WHERE leadcustomerinfo_mobilenumber = '9876543210'
+      LIMIT 100
+
+  - question: "Find all leads for customer name Rahul Sharma"
+    tables: [leadorderinfo]
+    sql: >
+      SELECT leadcustomerinfo_customername,
+             leadcustomerinfo_mobilenumber,
+             leadcustomerinfo_pan,
+             leadcustomerinfo_loanamount,
+             leadcustomerinfo_creditscore,
+             leadstage, provider, partnerid, createdat
+      FROM sachet.leadorderinfo
+      WHERE lower(leadcustomerinfo_customername) ILIKE '%rahul sharma%'
+      LIMIT 100

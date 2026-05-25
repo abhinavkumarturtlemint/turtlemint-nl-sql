@@ -30,13 +30,17 @@ from app.backend import config
 
 _PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+def _bson_path(folder: str, stem: str) -> str:
+    """Return the unzipped .bson path if it exists, else fall back to .bson.gz."""
+    base = os.path.join(_PROJECT_ROOT, folder, "turtlefin")
+    plain = os.path.join(base, f"{stem}.bson")
+    gzipped = os.path.join(base, f"{stem}.bson.gz")
+    return plain if os.path.exists(plain) else gzipped
+
+
 BSON_TABLE_MAP: Dict[str, str] = {
-    "leadorderinfo": os.path.join(
-        _PROJECT_ROOT, "Sachet-DB-Stage", "turtlefin", "LeadOrderInfo.bson.gz"
-    ),
-    "loanoffers": os.path.join(
-        _PROJECT_ROOT, "Sachet-DB-Stage-Loanoffers", "turtlefin", "LoanOffers.bson.gz"
-    ),
+    "leadorderinfo": _bson_path("Sachet-DB-Stage", "LeadOrderInfo"),
+    "loanoffers":    _bson_path("Sachet-DB-Stage-Loanoffers", "LoanOffers"),
 }
 
 
@@ -148,8 +152,13 @@ def _load_bson_table(table_name: str) -> "pd.DataFrame":
             "Run: .venv/bin/pip install pymongo"
         )
 
-    with gzip.open(path, "rb") as fh:
-        raw = fh.read()
+    # Support both plain .bson and .bson.gz
+    if path.endswith(".gz"):
+        with gzip.open(path, "rb") as fh:
+            raw = fh.read()
+    else:
+        with open(path, "rb") as fh:
+            raw = fh.read()
 
     records = []
     offset = 0

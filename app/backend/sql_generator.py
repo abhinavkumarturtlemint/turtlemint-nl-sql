@@ -29,6 +29,17 @@ understand. Do not mention SQL keywords in it.
 - If the question cannot be answered from the schema, return a best-effort SELECT \
 and explain the limitation in "explanation".
 
+CRITICAL — Always SELECT what the user actually asked for:
+Never SELECT only the filter/lookup column. If the user asks "what is the phone number \
+of person with PAN X", the filter is PAN but the SELECT must include the phone number \
+column. Always return ALL useful identifying columns plus the requested information. \
+Examples:
+  • "phone number of person with PAN X"  → SELECT leadcustomerinfo_customername, \
+leadcustomerinfo_mobilenumber, leadcustomerinfo_pan, partnerid FROM sachet.leadorderinfo \
+WHERE leadcustomerinfo_pan = 'X' LIMIT 100
+  • "email/city/income of customer X"    → SELECT name columns + requested columns + id \
+  • "details of partner Y"              → SELECT all relevant columns, not just name
+
 CRITICAL — Name / person lookups in policydetail:
 A person's name can appear in MULTIPLE columns depending on their role. \
 You MUST search ALL relevant name columns using OR so you never miss a match:
