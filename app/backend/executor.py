@@ -411,6 +411,46 @@ def _adapt_sql_for_duckdb(sql: str) -> str:
     return adapted
 
 
+def _sanitize_rows(df: "pd.DataFrame") -> List[List[Any]]:
+    """Convert a DataFrame to a plain Python list-of-lists safe for JSON.
+
+    Handles all pandas/numpy types that are NOT JSON-serializable:
+      - pandas.Timestamp / datetime  → ISO string  "2026-01-09T10:15:32"
+      - pandas.NaT                   → None
+      - pandas.NA                    → None
+      - float nan / inf / -inf       → None
+      - numpy int64/float64          → int / float
+    """
+    import math
+    import pandas as pd
+
+    rows = []
+    for _, row in df.iterrows():
+        clean = []
+        for val in row:
+            if val is None:
+                clean.append(None)
+            elif isinstance(val, pd.Timestamp):
+                clean.append(None if pd.isna(val) else val.isoformat())
+            elif isinstance(val, float):
+                clean.append(None if (math.isnan(val) or math.isinf(val)) else val)
+            else:
+                # pd.NA, pd.NaT, numpy scalars
+                try:
+                    if pd.isna(val):
+                        clean.append(None)
+                        continue
+                except (TypeError, ValueError):
+                    pass
+                # numpy int/float → plain Python
+                try:
+                    clean.append(val.item())
+                except AttributeError:
+                    clean.append(val)
+        rows.append(clean)
+    return rows
+
+
 def _run_api_duckdb(sql: str) -> QueryResult:
     """Fetch data from OpenMetadata API, load into DuckDB in-memory, run SQL."""
     import duckdb
@@ -483,7 +523,7 @@ def _run_api_duckdb(sql: str) -> QueryResult:
         raise ExecutorError(f"Query failed: {e}\n\nAdapted SQL:\n{adapted_sql}") from e
 
     columns = list(result.columns)
-    rows = result.values.tolist()
+    rows = _sanitize_rows(result)
     return QueryResult(columns=columns, rows=rows, row_count=len(rows))
 
 
