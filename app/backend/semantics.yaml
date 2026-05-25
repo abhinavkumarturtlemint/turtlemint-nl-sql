@@ -141,6 +141,48 @@ metrics:
     tables: [policydetail]
     keywords: [am, rm, sm, area manager, relationship manager, sales manager, national head, hierarchy]
 
+  - name: policies_by_channel
+    label: "Policies by Sales Channel"
+    description: "Count or premium breakdown by sales channel: partner, direct, BQP, digital, kiosk"
+    tables: [policydetail]
+    keywords: [channel, bqp, direct channel, partner channel, kiosk, digital, sales channel, channeltype, channel type]
+
+  - name: policies_by_plan_type
+    label: "Policies by Plan Type"
+    description: "Count or premium breakdown by plan type: ULIP, traditional, term, endowment"
+    tables: [policydetail]
+    keywords: [plan type, ulip, traditional, term plan, endowment, plantype, category, term insurance, linked, protection]
+
+  - name: annualised_premium
+    label: "Annualised Net Premium"
+    description: "Sum or average of premiumdetails_annualisednetpremium — use for YoY or cross-frequency comparisons"
+    tables: [policydetail]
+    keywords: [annualised premium, annualized premium, annp, anp, annual basis premium, yearly premium]
+
+  - name: policies_by_payment_frequency
+    label: "Policies by Payment Frequency"
+    description: "Count breakdown by MONTHLY, QUARTERLY, ANNUAL, or SINGLE PREMIUM payment frequency"
+    tables: [policydetail]
+    keywords: [payment frequency, monthly premium, quarterly, annual premium, single premium, how often, frequency]
+
+  - name: renewal_pipeline
+    label: "Renewal Pipeline"
+    description: "Policies with enddate in the next 30/60/90 days — upcoming renewals to action"
+    tables: [policydetail]
+    keywords: [renewal due, expiring, upcoming renewal, due for renewal, policy expiry, ending soon, next 30 days, enddate, expire]
+
+  - name: rm_am_sm_performance
+    label: "RM / AM / SM Performance"
+    description: "Policies or gross premium ranked by Relationship Manager, Area Manager, or Sales Manager"
+    tables: [policydetail]
+    keywords: [rm performance, am performance, sm performance, relationship manager performance, area manager performance, which rm, which am, which sm, top rm, top am, manager performance, best rm]
+
+  - name: sum_insured_by_vertical
+    label: "Sum Insured by Vertical"
+    description: "Total sum insured / sum assured (policyrisk_suminsured) by vertical or insurer"
+    tables: [policydetail]
+    keywords: [sum insured, sum assured, coverage, total coverage, coverage amount, risk cover, life cover]
+
   # ── Sachet lending platform metrics ──────────────────────────────────────
 
   - name: loan_lead_funnel
@@ -215,6 +257,36 @@ metrics:
     tables: [leadorderinfo]
     keywords: [pan, pan number, mobile, phone number, phone, mobile number, contact, lead id, loan applicant, loan customer, find person, person with pan, person with mobile, details of loan, sachet customer, sachet lead, loan lead, lending customer, borrower, applicant name, find applicant, customer name loan]
 
+  - name: loan_city_analysis
+    label: "Loan Leads by City"
+    description: "Number of loan leads broken down by customer city (leadcustomerinfo_city)"
+    tables: [leadorderinfo]
+    keywords: [city, loan city, by city, city wise, loan by city, location, city breakdown, which city, applicant city, where are leads]
+
+  - name: loan_amount_analysis
+    label: "Loan Amount Analysis"
+    description: "Average, median, or distribution of requested loan amounts (leadcustomerinfo_loanamount)"
+    tables: [leadorderinfo]
+    keywords: [loan amount, how much loan, average loan, loan size, amount requested, loan value, requested amount, loan demand]
+
+  - name: loan_form_completion
+    label: "Loan Funnel Micro-Metrics"
+    description: "OTP submission rate, form completion rate, and offer selection rate — lead engagement metrics in leadorderinfo"
+    tables: [leadorderinfo]
+    keywords: [otp, otp submitted, form submitted, form completion, offer selected, offer selection, how many submitted, lead engagement, isofferselected, isleadformsubmitted, engaged leads]
+
+  - name: loan_rejection_detail
+    label: "Grid vs API Rejection Breakdown"
+    description: "Breakdown of loan rejections: grid rejections (offer_isgridreject) vs API rejections (offer_isapiReject) by lender"
+    tables: [loanoffers]
+    keywords: [grid reject, api reject, grid rejection, api rejection, why rejected, rejection type, isgridreject, isapiReject, rejection breakdown]
+
+  - name: processing_fee_analysis
+    label: "Processing Fee by Lender"
+    description: "Average or total processing fee (offer_processingfee) charged by each lender"
+    tables: [loanoffers]
+    keywords: [processing fee, fees, lender fee, offer fee, processing charges, fee comparison]
+
 
 dimensions:
 
@@ -251,6 +323,131 @@ dimensions:
     column: status
     values: [active, lapsed, cancelled]
     keywords: [active policy, lapsed policy, cancelled, policy status]
+
+  # ── policydetail dimensions ──────────────────────────────────────────────
+
+  - name: vertical
+    label: "Business Vertical"
+    table: policydetail
+    column: vertical
+    values: [LIFE, MOTOR, HEALTH, TRAVEL]
+    keywords: [vertical, life vertical, motor vertical, health vertical, travel vertical, line of business, product line]
+
+  - name: insurer
+    label: "Insurer"
+    table: policydetail
+    column: insurer
+    values: [ICICIPRULI, HDFCLI, SBILI, MAXLI, BAJAJLIFE, KOTAKLIFE, TATAAIA, HDFC Ergo, ICICI Lombard]
+    keywords: [insurer, insurance company, icici, hdfc, sbi, max, bajaj, kotak, tata, insurance provider, insurer name]
+
+  - name: substatus
+    label: "Policy Sub-Status"
+    table: policydetail
+    column: substatus
+    values: [IN_FORCE, LAPSED, PAID_UP, SURRENDERED, MATURED]
+    keywords: [substatus, in force, inforce, lapsed, paid up, surrendered, matured, sub status, policy sub status]
+
+  - name: businesstype_dim
+    label: "Business Type"
+    table: policydetail
+    column: businesstype
+    values: [NEW, RENEWAL, ROLLOVER]
+    keywords: [business type, new business, renewal business, rollover, businesstype, ported]
+
+  - name: channeltype
+    label: "Sales Channel"
+    table: policydetail
+    column: channeltype
+    values: [partner, direct, bqp, digital, kiosk]
+    keywords: [channel type, bqp, direct sales, partner channel, digital channel, kiosk, sales channel, channeltype]
+
+  - name: payment_status_dim
+    label: "Payment Status"
+    table: policydetail
+    column: payment_paymentstatus
+    values: [Completed, Pending, Overdue]
+    keywords: [payment status, paid, payment overdue, completed payment, pending payment]
+
+  - name: payment_frequency
+    label: "Payment Frequency"
+    table: policydetail
+    column: payment_paymentfrequency
+    values: [ANNUAL, MONTHLY, QUARTERLY, SINGLE]
+    keywords: [payment frequency, monthly, quarterly, annual, single premium, how often, paying frequency]
+
+  - name: plan_type
+    label: "Plan Type"
+    table: policydetail
+    column: plantype
+    values: [ulip, traditional, term, endowment]
+    keywords: [plan type, ulip, traditional plan, term plan, endowment plan, plantype, policy type]
+
+  - name: sales_region
+    label: "Sales Region"
+    table: policydetail
+    column: salesdetail_region
+    values: [East, West, North, South]
+    keywords: [sales region, east region, west region, north region, south region, zone, regional]
+
+  - name: category_dim
+    label: "Product Category"
+    table: policydetail
+    column: category
+    values: [term, ulip, traditional, endowment, whole life]
+    keywords: [category, product category, term, ulip, traditional, endowment, whole life, policy category]
+
+  # ── leadorderinfo dimensions ─────────────────────────────────────────────
+
+  - name: lead_stage
+    label: "Lead Stage"
+    table: leadorderinfo
+    column: leadstage
+    values: [quote, credit-stage, proposal, payment, issuance, closed, Preoffer drop-off]
+    keywords: [lead stage, stage, funnel stage, quote stage, proposal stage, payment stage, issuance stage, drop off, leadstage]
+
+  - name: lead_quality
+    label: "Lead Quality"
+    table: leadorderinfo
+    column: leadquality
+    values: [GOOD, BAD, MEDIUM]
+    keywords: [lead quality, quality, good lead, bad lead, medium quality, quality score, leadquality]
+
+  - name: lead_product
+    label: "Loan Product Code"
+    table: leadorderinfo
+    column: productcode
+    values: [personal-loan, mobile, health, motor]
+    keywords: [product code, personal loan, productcode, loan product, which product]
+
+  - name: journey_type
+    label: "Journey Type"
+    table: leadorderinfo
+    column: journey_journeytype
+    values: [assisted, direct]
+    keywords: [journey type, assisted journey, direct journey, partner assisted, self serve, self-serve]
+
+  - name: employment_type
+    label: "Employment Type"
+    table: leadorderinfo
+    column: leadcustomerinfo_employmenttype
+    values: [Salaried, Self-employed]
+    keywords: [employment type, salaried, self employed, self-employed, employment, job type]
+
+  # ── loanoffers dimensions ────────────────────────────────────────────────
+
+  - name: offer_result
+    label: "Offer Status"
+    table: loanoffers
+    column: offer_status
+    values: [success, reject]
+    keywords: [offer status, offer approved, offer rejected, offer result, successful offer, rejected offer]
+
+  - name: lender
+    label: "Lender / Provider"
+    table: loanoffers
+    column: offer_provider
+    values: [smfg, kissht, moneyview, pfl, stashfin, herofincorp]
+    keywords: [lender, provider, smfg, kissht, moneyview, pfl, stashfin, herofincorp, which lender, offer provider]
 
 
 business_terms:
@@ -314,6 +511,83 @@ business_terms:
     table: policydetail
     keywords: [renewal, renewed, renewing]
 
+  - term: "rollover"
+    definition: "Policies ported from another insurer — businesstype = 'ROLLOVER'"
+    sql_filter: "businesstype = 'ROLLOVER'"
+    table: policydetail
+    keywords: [rollover, ported, portability, transferred, migration]
+
+  - term: "motor vertical"
+    definition: "Motor insurance policies — vertical = 'MOTOR'"
+    sql_filter: "vertical = 'MOTOR'"
+    table: policydetail
+    keywords: [motor, motor insurance, motor vertical, car insurance, bike insurance, two-wheeler, four-wheeler, vehicle]
+
+  - term: "health vertical"
+    definition: "Health insurance policies — vertical = 'HEALTH'"
+    sql_filter: "vertical = 'HEALTH'"
+    table: policydetail
+    keywords: [health, health insurance, health vertical, mediclaim, medical]
+
+  - term: "travel vertical"
+    definition: "Travel insurance policies — vertical = 'TRAVEL'"
+    sql_filter: "vertical = 'TRAVEL'"
+    table: policydetail
+    keywords: [travel, travel insurance, travel vertical, international travel]
+
+  - term: "ulip"
+    definition: "Unit Linked Insurance Plan — plantype = 'ulip'"
+    sql_filter: "plantype = 'ulip'"
+    table: policydetail
+    keywords: [ulip, unit linked, market linked, linked plan]
+
+  - term: "term plan"
+    definition: "Pure protection term insurance — plantype = 'term'"
+    sql_filter: "plantype = 'term'"
+    table: policydetail
+    keywords: [term, term plan, term insurance, pure protection, pure term]
+
+  - term: "traditional plan"
+    definition: "Traditional (non-ULIP) life insurance — plantype = 'traditional'"
+    sql_filter: "plantype = 'traditional'"
+    table: policydetail
+    keywords: [traditional, traditional plan, non-ulip, guaranteed plan, par plan]
+
+  - term: "endowment"
+    definition: "Endowment policy — category = 'endowment'"
+    sql_filter: "category = 'endowment'"
+    table: policydetail
+    keywords: [endowment, endowment plan, savings insurance, money back]
+
+  - term: "bqp channel"
+    definition: "BQP (Business Quality Partner) sales channel — channeltype = 'bqp'"
+    sql_filter: "channeltype = 'bqp'"
+    table: policydetail
+    keywords: [bqp, business quality partner, bqp channel, bqp policies]
+
+  - term: "direct channel"
+    definition: "Policies sold directly without a partner — channeltype = 'direct'"
+    sql_filter: "channeltype = 'direct'"
+    table: policydetail
+    keywords: [direct channel, direct sales, direct business, non-partner]
+
+  - term: "last year"
+    definition: "The previous calendar year"
+    sql_filter: "toYear(createdat) = toYear(now()) - 1"
+    keywords: [last year, previous year, prior year, last fy, fy last]
+
+  - term: "payment overdue"
+    definition: "Policies with overdue payments — payment_paymentstatus = 'Overdue'"
+    sql_filter: "payment_paymentstatus = 'Overdue'"
+    table: policydetail
+    keywords: [overdue, payment overdue, defaulted, missed payment, due payment]
+
+  - term: "annualised net premium"
+    definition: "premiumdetails_annualisednetpremium — annualised basis premium (excludes taxes, normalises all payment frequencies to annual for comparison)"
+    sql_filter: "premiumdetails_annualisednetpremium"
+    table: policydetail
+    keywords: [annualised premium, annualized premium, annp, anp, annual basis premium, yearly basis]
+
   # ── Sachet lending business terms ─────────────────────────────────────────
 
   - term: "loan lead at quote stage"
@@ -363,6 +637,72 @@ business_terms:
     sql_filter: "journey_journeytype = 'assisted'"
     table: leadorderinfo
     keywords: [assisted, partner assisted, partner journey]
+
+  - term: "direct journey"
+    definition: "Customer self-serve loan journey with no partner — journey_journeytype = 'direct'"
+    sql_filter: "journey_journeytype = 'direct'"
+    table: leadorderinfo
+    keywords: [direct journey, self serve, self-serve, direct loan, customer direct]
+
+  - term: "pre-offer drop-off"
+    definition: "Loan leads that dropped out before receiving any offer — leadstage = 'Preoffer drop-off'"
+    sql_filter: "leadstage = 'Preoffer drop-off'"
+    table: leadorderinfo
+    keywords: [preoffer, pre offer, drop off, dropped before offer, no offer, preoffer drop]
+
+  - term: "credit stage"
+    definition: "Loan lead at credit check / bureau pull stage — leadstage = 'credit-stage'"
+    sql_filter: "leadstage = 'credit-stage'"
+    table: leadorderinfo
+    keywords: [credit stage, credit check stage, at credit, bureau stage]
+
+  - term: "proposal stage"
+    definition: "Loan lead at application / proposal stage — leadstage = 'proposal'"
+    sql_filter: "leadstage = 'proposal'"
+    table: leadorderinfo
+    keywords: [proposal stage, proposal, at proposal, application stage]
+
+  - term: "issuance stage"
+    definition: "Loan lead at disbursement / issuance stage — leadstage = 'issuance'"
+    sql_filter: "leadstage = 'issuance'"
+    table: leadorderinfo
+    keywords: [issuance, disbursed, disbursement, loan issued, at issuance, issuance stage]
+
+  - term: "bad quality lead"
+    definition: "A lead with leadquality = 'BAD'"
+    sql_filter: "leadquality = 'BAD'"
+    table: leadorderinfo
+    keywords: [bad lead, bad quality, poor quality, low quality lead]
+
+  - term: "medium quality lead"
+    definition: "A lead with leadquality = 'MEDIUM'"
+    sql_filter: "leadquality = 'MEDIUM'"
+    table: leadorderinfo
+    keywords: [medium lead, medium quality, average quality]
+
+  - term: "salaried applicant"
+    definition: "Loan applicant with salaried employment — leadcustomerinfo_employmenttype = 'Salaried'"
+    sql_filter: "leadcustomerinfo_employmenttype = 'Salaried'"
+    table: leadorderinfo
+    keywords: [salaried, salaried applicant, employed, job, salary earner]
+
+  - term: "self-employed applicant"
+    definition: "Loan applicant who is self-employed — lower(leadcustomerinfo_employmenttype) ILIKE '%self%'"
+    sql_filter: "lower(leadcustomerinfo_employmenttype) ILIKE '%self%'"
+    table: leadorderinfo
+    keywords: [self employed, self-employed, business owner, freelancer, proprietor]
+
+  - term: "grid rejection"
+    definition: "Loan offer rejected by lender eligibility grid — offer_isgridreject = 'True'"
+    sql_filter: "offer_isgridreject = 'True'"
+    table: loanoffers
+    keywords: [grid reject, grid rejection, eligibility reject, policy grid, rule-based reject]
+
+  - term: "api rejection"
+    definition: "Loan offer rejected by lender API (real-time) — offer_isapiReject = 'True'"
+    sql_filter: "offer_isapiReject = 'True'"
+    table: loanoffers
+    keywords: [api reject, api rejection, api declined, lender api reject]
 
   - term: "life vertical"
     definition: "Life insurance policies — vertical = 'LIFE'"
@@ -700,3 +1040,215 @@ example_questions:
       FROM sachet.leadorderinfo
       WHERE lower(leadcustomerinfo_customername) ILIKE '%abhishek kumar%'
       LIMIT 100
+
+  # ── Additional policydetail examples ─────────────────────────────────────
+
+  - question: "Policies breakdown by sales channel (BQP, partner, direct)"
+    tables: [policydetail]
+    sql: >
+      SELECT channeltype,
+             count() AS policy_count,
+             sum(premiumdetails_grosspremium) AS total_premium
+      FROM spectrum.policydetail
+      GROUP BY channeltype
+      ORDER BY policy_count DESC
+
+  - question: "How many ULIP policies were sold this year?"
+    tables: [policydetail]
+    sql: >
+      SELECT count() AS ulip_count,
+             sum(premiumdetails_grosspremium) AS total_premium
+      FROM spectrum.policydetail
+      WHERE plantype = 'ulip'
+        AND toYear(createdat) = toYear(now())
+
+  - question: "Which RM has the highest gross premium this year?"
+    tables: [policydetail]
+    sql: >
+      SELECT salesdetail_rm,
+             count() AS policy_count,
+             sum(premiumdetails_grosspremium) AS total_premium
+      FROM spectrum.policydetail
+      WHERE toYear(createdat) = toYear(now())
+        AND salesdetail_rm != ''
+      GROUP BY salesdetail_rm
+      ORDER BY total_premium DESC
+      LIMIT 10
+
+  - question: "Top 10 area managers by number of policies"
+    tables: [policydetail]
+    sql: >
+      SELECT salesdetail_am,
+             count() AS policy_count,
+             sum(premiumdetails_grosspremium) AS total_premium
+      FROM spectrum.policydetail
+      WHERE salesdetail_am != ''
+      GROUP BY salesdetail_am
+      ORDER BY policy_count DESC
+      LIMIT 10
+
+  - question: "Policies expiring in the next 30 days"
+    tables: [policydetail]
+    sql: >
+      SELECT policynumber, customerid, proposer_fname, proposer_lname,
+             insurer, vertical, enddate,
+             salesdetail_intermediaryname, salesdetail_region,
+             premiumdetails_grosspremium
+      FROM spectrum.policydetail
+      WHERE enddate >= today()
+        AND enddate <= today() + INTERVAL 30 DAY
+        AND substatus = 'IN_FORCE'
+      ORDER BY enddate ASC
+      LIMIT 100
+
+  - question: "Annualised net premium by insurer"
+    tables: [policydetail]
+    sql: >
+      SELECT insurer,
+             count() AS policy_count,
+             sum(premiumdetails_annualisednetpremium) AS total_annp,
+             round(avg(premiumdetails_annualisednetpremium), 0) AS avg_annp
+      FROM spectrum.policydetail
+      WHERE premiumdetails_annualisednetpremium > 0
+      GROUP BY insurer
+      ORDER BY total_annp DESC
+
+  - question: "Premium breakdown by payment frequency"
+    tables: [policydetail]
+    sql: >
+      SELECT payment_paymentfrequency,
+             count() AS policy_count,
+             sum(premiumdetails_grosspremium) AS total_premium
+      FROM spectrum.policydetail
+      GROUP BY payment_paymentfrequency
+      ORDER BY policy_count DESC
+
+  - question: "How many rollover policies do we have by insurer?"
+    tables: [policydetail]
+    sql: >
+      SELECT insurer, count() AS rollover_count,
+             sum(premiumdetails_grosspremium) AS total_premium
+      FROM spectrum.policydetail
+      WHERE businesstype = 'ROLLOVER'
+      GROUP BY insurer
+      ORDER BY rollover_count DESC
+
+  - question: "Policies with overdue payments by region"
+    tables: [policydetail]
+    sql: >
+      SELECT salesdetail_region,
+             count() AS overdue_count,
+             sum(premiumdetails_grosspremium) AS total_premium
+      FROM spectrum.policydetail
+      WHERE payment_paymentstatus = 'Overdue'
+      GROUP BY salesdetail_region
+      ORDER BY overdue_count DESC
+
+  - question: "Sum insured breakdown by vertical"
+    tables: [policydetail]
+    sql: >
+      SELECT vertical,
+             count() AS policy_count,
+             sum(policyrisk_suminsured) AS total_sum_insured,
+             round(avg(policyrisk_suminsured), 0) AS avg_sum_insured
+      FROM spectrum.policydetail
+      WHERE policyrisk_suminsured > 0
+      GROUP BY vertical
+      ORDER BY total_sum_insured DESC
+
+  # ── Additional Sachet lending examples ───────────────────────────────────
+
+  - question: "What is the average loan amount requested by employment type?"
+    tables: [leadorderinfo]
+    sql: >
+      SELECT leadcustomerinfo_employmenttype,
+             count(*) AS applicant_count,
+             round(avg(toFloat64OrNull(leadcustomerinfo_loanamount)), 0) AS avg_loan_amount,
+             round(avg(toFloat64OrNull(leadcustomerinfo_monthlyincome)), 0) AS avg_monthly_income
+      FROM sachet.leadorderinfo
+      WHERE leadcustomerinfo_loanamount IS NOT NULL
+        AND leadcustomerinfo_loanamount != '0'
+      GROUP BY leadcustomerinfo_employmenttype
+      ORDER BY avg_loan_amount DESC
+
+  - question: "Loan leads by city — which cities have the most applicants?"
+    tables: [leadorderinfo]
+    sql: >
+      SELECT leadcustomerinfo_city, count(*) AS lead_count
+      FROM sachet.leadorderinfo
+      WHERE leadcustomerinfo_city IS NOT NULL
+        AND leadcustomerinfo_city != ''
+      GROUP BY leadcustomerinfo_city
+      ORDER BY lead_count DESC
+      LIMIT 20
+
+  - question: "What is the success rate of loan offers by lender?"
+    tables: [loanoffers]
+    sql: >
+      SELECT offer_provider,
+             count(*) AS total_offers,
+             countIf(offer_status = 'success') AS successful_offers,
+             countIf(offer_status = 'reject') AS rejected_offers,
+             round(100.0 * countIf(offer_status = 'success') / count(*), 2) AS success_rate_pct
+      FROM sachet.loanoffers
+      GROUP BY offer_provider
+      ORDER BY success_rate_pct DESC
+
+  - question: "How many leads dropped before receiving any offer (pre-offer drop-off)?"
+    tables: [leadorderinfo]
+    sql: >
+      SELECT count(*) AS preoffer_dropoff_count,
+             round(100.0 * count(*) / (SELECT count(*) FROM sachet.leadorderinfo), 2) AS pct_of_total
+      FROM sachet.leadorderinfo
+      WHERE leadstage = 'Preoffer drop-off'
+
+  - question: "Processing fee comparison across lenders"
+    tables: [loanoffers]
+    sql: >
+      SELECT offer_provider,
+             round(avg(toFloat64OrNull(offer_processingfee)), 0) AS avg_processing_fee,
+             round(min(toFloat64OrNull(offer_processingfee)), 0) AS min_fee,
+             round(max(toFloat64OrNull(offer_processingfee)), 0) AS max_fee,
+             count(*) AS offer_count
+      FROM sachet.loanoffers
+      WHERE offer_status = 'success'
+        AND offer_processingfee IS NOT NULL
+      GROUP BY offer_provider
+      ORDER BY avg_processing_fee ASC
+
+  - question: "Grid rejection vs API rejection breakdown by lender"
+    tables: [loanoffers]
+    sql: >
+      SELECT offer_provider,
+             count(*) AS total_rejected,
+             countIf(offer_isgridreject = 'True') AS grid_rejections,
+             countIf(offer_isapiReject = 'True') AS api_rejections,
+             round(100.0 * countIf(offer_isgridreject = 'True') / count(*), 2) AS grid_reject_pct
+      FROM sachet.loanoffers
+      WHERE offer_status = 'reject'
+      GROUP BY offer_provider
+      ORDER BY total_rejected DESC
+
+  - question: "Assisted vs direct journey split for loan leads"
+    tables: [leadorderinfo]
+    sql: >
+      SELECT journey_journeytype,
+             count(*) AS lead_count,
+             round(100.0 * count(*) / sum(count(*)) OVER (), 2) AS pct
+      FROM sachet.leadorderinfo
+      WHERE journey_journeytype IS NOT NULL
+        AND journey_journeytype != ''
+      GROUP BY journey_journeytype
+      ORDER BY lead_count DESC
+
+  - question: "Loan leads breakdown by product code"
+    tables: [leadorderinfo]
+    sql: >
+      SELECT productcode,
+             count(*) AS lead_count,
+             round(avg(toFloat64OrNull(leadcustomerinfo_loanamount)), 0) AS avg_loan_amount
+      FROM sachet.leadorderinfo
+      WHERE productcode IS NOT NULL
+        AND productcode != ''
+      GROUP BY productcode
+      ORDER BY lead_count DESC
