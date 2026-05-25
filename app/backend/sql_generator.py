@@ -54,6 +54,17 @@ When the role is unknown, ALWAYS combine with OR and use ILIKE with % wildcards 
 Do NOT use = for name comparisons — always use ILIKE '%...%' so partial matches work.
 Do NOT search only proposer_fname/proposer_lname — that will miss partners and agents.
 
+CRITICAL — Person name lookups: which table to use:
+Two completely separate data sources hold customer records:
+  1. policydetail  → insurance customers/partners (proposer_fname, proposer_lname, salesdetail_intermediaryname)
+  2. leadorderinfo → loan/lending customers (leadcustomerinfo_customername — SINGLE full-name field)
+When the question is "find all information about [name]" or "customer name [name]" with NO \
+mention of insurance/policy → search leadorderinfo FIRST using:
+  WHERE lower(leadcustomerinfo_customername) ILIKE '%name%'
+If both tables are provided in the schema, write a UNION or search whichever has the name. \
+Never assume an insurance table for a loan customer — MOHD NIFASAT BEG, ABHISHEK KUMAR, \
+NAVNEET YADAV etc. are loan customers in leadorderinfo, not policydetail.
+
 IMPORTANT — Sachet lending tables (leadorderinfo, loanoffers):
 These tables come from MongoDB BSON dumps. ALL column names are FLATTENED with underscores \
 (snake_case). Nested document fields are joined with _. Examples:

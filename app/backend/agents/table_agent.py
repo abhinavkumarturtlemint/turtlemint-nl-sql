@@ -14,7 +14,13 @@ from app.backend.schema_catalog import get_table, table_names
 _SYSTEM = """You select the minimal set of database tables needed to answer a \
 question. Choose only from the candidate tables provided. Prefer the fewest \
 tables that fully answer it. Return ONLY JSON: {"tables": ["..."], \
-"reason": "one short sentence"}."""
+"reason": "one short sentence"}.
+
+Key data source rules — use these to pick the right table:
+- Insurance policies, partners, agents, claims, commissions → policydetail (or policy/partner/claim/commission)
+- Loan / lending / personal-loan customers, loan leads, lenders, ROI, EMI, credit score → leadorderinfo or loanoffers
+- When looking up a person by name and it is UNCLEAR whether they are an insurance customer or a loan customer → include BOTH policydetail AND leadorderinfo as candidates so both are searched.
+- "Find all information about [name]" or "customer name [name]" with no other context → ALWAYS include leadorderinfo alongside policydetail."""
 
 
 def _candidates_block(candidates: List[str]) -> str:
