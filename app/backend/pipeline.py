@@ -24,6 +24,7 @@ New architecture (live API):
 """
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
@@ -58,11 +59,16 @@ class Plan:
 def plan(question: str, previous: Optional[str] = None) -> Plan:
     enhanced = prompt_enhancer.enhance(question, previous)
 
-    # Semantic layer: keyword-based routing, zero LLM/embedding calls
+    # Semantic layer: keyword-based routing, zero LLM/embedding calls (instant)
     candidate_tables = semantics.get_tables(enhanced)
 
-    intent = intent_agent.classify(enhanced)
-    tbl = table_agent.select(enhanced, candidate_tables)
+    # Intent agent and Table agent are independent — run them in parallel to
+    # save ~2 s compared to sequential execution.
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        intent_future = pool.submit(intent_agent.classify, enhanced)
+        table_future  = pool.submit(table_agent.select, enhanced, candidate_tables)
+        intent = intent_future.result()
+        tbl    = table_future.result()
 
     return Plan(
         question=question,

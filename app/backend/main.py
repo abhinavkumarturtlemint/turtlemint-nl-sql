@@ -13,7 +13,9 @@ A question flows through three user-visible steps:
 """
 from __future__ import annotations
 
+import threading
 import time
+from contextlib import asynccontextmanager
 from typing import Any, Dict, List, Optional
 
 from fastapi import FastAPI
@@ -23,7 +25,16 @@ from app.backend import (audit, config, executor, glossary, guardrails, llm,
                          openmetadata, pipeline)
 from app.backend.schema_catalog import CATALOG, DOMAINS
 
-app = FastAPI(title="Turtlemint NL-SQL (agentic pipeline)")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Warm up BSON cache in a background thread so the first user query
+    # doesn't pay the 5–15 s cold-parse cost for the 60 MB LeadOrderInfo file.
+    threading.Thread(target=executor.warmup_bson_cache, daemon=True).start()
+    yield
+
+
+app = FastAPI(title="Turtlemint NL-SQL (agentic pipeline)", lifespan=lifespan)
 
 
 # --- models ----------------------------------------------------------------

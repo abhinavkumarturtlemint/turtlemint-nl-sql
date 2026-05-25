@@ -19,6 +19,11 @@ Return ONLY JSON: {"enhanced": "..."}."""
 def enhance(question: str, previous: Optional[str] = None) -> str:
     if not config.ENABLE_PROMPT_ENHANCER:
         return question
+    # Skip the LLM call when there is no previous context AND the question is
+    # already clean (≥4 words, no obvious typos needing expansion).
+    # This saves ~2 s on straightforward fresh questions.
+    if not previous and len(question.split()) >= 4:
+        return question
     user = question if not previous else f"PREVIOUS question: {previous}\nRefinement: {question}"
     try:
         data = llm.chat_json([

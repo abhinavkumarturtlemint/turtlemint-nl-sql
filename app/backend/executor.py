@@ -140,10 +140,15 @@ def _load_bson_table(table_name: str) -> "pd.DataFrame":
 
     Flattens nested fields with _ separator (lowercase).
     For loanoffers: explodes the offers[] array so each offer = one row.
+    Result is cached in-process so the 60 MB parse only happens once.
     """
     import pandas as pd
 
-    path = BSON_TABLE_MAP.get(table_name.lower())
+    name = table_name.lower()
+    if name in _bson_df_cache:
+        return _bson_df_cache[name]
+
+    path = BSON_TABLE_MAP.get(name)
     if not path or not os.path.exists(path):
         raise ExecutorError(
             f"BSON file not found for table '{table_name}': {path}"
@@ -219,11 +224,29 @@ def _load_bson_table(table_name: str) -> "pd.DataFrame":
             except Exception:
                 pass
 
+    _bson_df_cache[name] = df   # cache so the 60 MB parse never repeats
     return df
+
+
+def warmup_bson_cache() -> None:
+    """Pre-load all BSON tables into memory at server startup.
+
+    Eliminates the 5–15 s cold-start delay on the first query.
+    Called from main.py lifespan handler so it runs once in the background.
+    """
+    for table in BSON_TABLE_MAP:
+        try:
+            _load_bson_table(table)
+        except Exception:
+            pass  # don't crash startup if a file is missing
 
 
 # Cache for bson schema strings so we only build them once per process
 _bson_schema_cache: Dict[str, str] = {}
+
+# Cache for the loaded BSON DataFrames — avoids re-parsing the 60 MB file on
+# every query.  Populated on first use (or at startup via warmup_bson_cache).
+_bson_df_cache: Dict[str, "pd.DataFrame"] = {}
 
 
 def bson_schema_context(table_name: str) -> str:

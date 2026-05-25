@@ -19,7 +19,8 @@ suits a simple chart, suggest one. Return ONLY JSON: {"summary": "...", \
 
 
 def summarize(question: str, columns: List[str], rows: List[List[Any]]) -> Dict:
-    if not config.ENABLE_RESULT_FORMATTER or not columns:
+    # Skip the LLM call entirely when there's nothing to summarise.
+    if not config.ENABLE_RESULT_FORMATTER or not columns or not rows:
         return {"summary": "", "chart": None}
     sample = rows[:20]
     payload = {"question": question, "columns": columns, "rows": sample}
