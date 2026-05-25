@@ -183,12 +183,17 @@ def do_refine(refine_text: str):
         })
     add_usage(run_resp)
 
-    # Commit everything to session state atomically
+    # Commit everything to session state atomically.
+    # NOTE: tables_ms is bound to a multiselect widget, so we CANNOT set it
+    # directly here (Streamlit raises StreamlitAPIException if a widget key is
+    # modified after the widget has rendered in this frame).
+    # Instead we stash the new value in a temp key; the top-of-script block
+    # below transfers it to tables_ms before the multiselect renders next run.
     st.session_state.plan = plan_resp
     st.session_state.gen = gen_resp
     st.session_state.run = run_resp
     st.session_state.enhanced = merged_q
-    st.session_state.tables_ms = new_tables
+    st.session_state._pending_tables = new_tables   # ← transferred at top of next run
     st.session_state.sql_editor = sql
     st.session_state.refine = ""  # clear the refine text input
 
@@ -200,6 +205,12 @@ for key, default in {
     "usage": {"calls": 0, "prompt_tokens": 0, "completion_tokens": 0},
 }.items():
     st.session_state.setdefault(key, default)
+
+# Transfer pending tables from do_refine BEFORE the multiselect widget renders.
+# Streamlit forbids setting a widget-bound key after that widget has rendered
+# in the same frame, so do_refine stashes the value here for us to pick up.
+if "_pending_tables" in st.session_state:
+    st.session_state.tables_ms = st.session_state.pop("_pending_tables")
 
 # --- sidebar ---
 with st.sidebar:
