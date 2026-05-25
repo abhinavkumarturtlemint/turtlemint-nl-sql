@@ -140,7 +140,8 @@ def get_context(question: str) -> str:
     lines = ["TURTLEMINT BUSINESS GLOSSARY (use these definitions when writing SQL):"]
     for item in matched_terms:
         name = item.get("name", "")
-        glossary_name = item.get("glossary", {}).get("name", "")
+        glossary_field = item.get("glossary") or {}
+        glossary_name = glossary_field.get("name", "") if isinstance(glossary_field, dict) else str(glossary_field)
         raw_desc = _strip_html(item.get("description", ""))
         routing = _extract_routing(raw_desc)
 

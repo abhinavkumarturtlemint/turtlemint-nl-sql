@@ -88,12 +88,17 @@ def _fetch_api_data(table_name: str) -> List[dict]:
 
     cols = [c.strip() for c in header_line.split("|")]
 
-    # Keep only rows that have real data (not separator lines)
+    # Keep only rows that have real data (not markdown separator lines like --- | --- | ---)
     rows = []
     for line in data_lines:
         vals = [v.strip() for v in line.split("|")]
-        if sum(1 for v in vals if v not in ("---", "", "None")) > 5:
-            rows.append(dict(zip(cols, vals)))
+        # Skip separator lines (all cells are "---", empty, or "None")
+        if all(v in ("---", "", "None") for v in vals if v):
+            continue
+        # Pad or trim to match column count so zip never silently drops data
+        if len(vals) < len(cols):
+            vals += [""] * (len(cols) - len(vals))
+        rows.append(dict(zip(cols, vals)))
 
     return rows
 
@@ -166,7 +171,12 @@ def _load_bson_table(table_name: str) -> "pd.DataFrame":
         size = int.from_bytes(raw[offset: offset + 4], "little")
         if size <= 0 or offset + size > len(raw):
             break
-        doc = _bson.decode(raw[offset: offset + size])
+        try:
+            doc = _bson.decode(raw[offset: offset + size])
+        except Exception as exc:
+            raise ExecutorError(
+                f"Corrupt BSON data in '{table_name}' at offset {offset}: {exc}"
+            ) from exc
 
         if table_name.lower() == "loanoffers":
             # Explode offers[] — one row per offer, parent fields repeated
@@ -370,9 +380,19 @@ def _adapt_sql_for_duckdb(sql: str) -> str:
         r'CAST(\1 AS DATE)',
         adapted, flags=re.IGNORECASE,
     )
+    def _add_months_replace(m: re.Match) -> str:
+        x, n_str = m.group(1).strip(), m.group(2).strip()
+        try:
+            n = int(n_str)
+            if n < 0:
+                return f"{x} - INTERVAL '{-n}' MONTH"
+            return f"{x} + INTERVAL '{n}' MONTH"
+        except ValueError:
+            return f"{x} + INTERVAL '{n_str}' MONTH"
+
     adapted = re.sub(
         r'\baddMonths\s*\(([^,]+),\s*([^)]+)\)',
-        r'\1 + INTERVAL \2 MONTH',
+        _add_months_replace,
         adapted, flags=re.IGNORECASE,
     )
     adapted = re.sub(
@@ -444,7 +464,12 @@ def _sanitize_rows(df: "pd.DataFrame") -> List[List[Any]]:
                     pass
                 # numpy int/float → plain Python
                 try:
-                    clean.append(val.item())
+                    py_val = val.item()
+                    # numpy.float32 inf/-inf also must become None
+                    if isinstance(py_val, float) and (math.isnan(py_val) or math.isinf(py_val)):
+                        clean.append(None)
+                    else:
+                        clean.append(py_val)
                 except AttributeError:
                     clean.append(val)
         rows.append(clean)
@@ -554,6 +579,9 @@ def _get_ch_client():
 
 
 def _run_clickhouse_http(sql: str) -> QueryResult:
+    import decimal
+    import datetime
+
     client = _get_ch_client()
     try:
         result = client.query(
@@ -562,7 +590,20 @@ def _run_clickhouse_http(sql: str) -> QueryResult:
     except Exception as e:
         raise ExecutorError(str(e)) from e
     columns = list(result.column_names)
-    rows = [list(r) for r in result.result_rows]
+
+    def _clean(v: Any) -> Any:
+        """Make ClickHouse-native types JSON-safe."""
+        if v is None:
+            return None
+        if isinstance(v, decimal.Decimal):
+            return float(v)
+        if isinstance(v, (datetime.datetime, datetime.date)):
+            return v.isoformat()
+        if isinstance(v, float) and (math.isnan(v) or math.isinf(v)):
+            return None
+        return v
+
+    rows = [[_clean(v) for v in r] for r in result.result_rows]
     return QueryResult(columns=columns, rows=rows, row_count=len(rows))
 
 

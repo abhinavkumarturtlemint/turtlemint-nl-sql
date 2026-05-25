@@ -85,7 +85,8 @@ def check(sql: str) -> GuardResult:
             pass  # DB-level max_result_rows is the backstop
 
     cleaned = tree.sql(dialect=config.SQL_DIALECT)
-    if limit_applied and tree.args.get("limit") is None:
+    # Safety net: if sqlglot's .limit() call silently failed, add it via string
+    if limit_applied and "LIMIT" not in cleaned.upper():
         cleaned = f"{cleaned} LIMIT {config.DEFAULT_ROW_LIMIT}"
     return GuardResult(True, cleaned, None, limit_applied)
 
