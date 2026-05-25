@@ -41,7 +41,18 @@ When the role is unknown, ALWAYS combine with OR and use ILIKE with % wildcards 
   WHERE lower(salesdetail_intermediaryname) ILIKE '%full name%'
      OR (lower(proposer_fname) ILIKE '%first%' AND lower(proposer_lname) ILIKE '%last%')
 Do NOT use = for name comparisons — always use ILIKE '%...%' so partial matches work.
-Do NOT search only proposer_fname/proposer_lname — that will miss partners and agents."""
+Do NOT search only proposer_fname/proposer_lname — that will miss partners and agents.
+
+IMPORTANT — Sachet lending tables (leadorderinfo, loanoffers):
+These tables come from MongoDB BSON dumps. ALL column names are FLATTENED with underscores \
+(snake_case). Nested document fields are joined with _. Examples:
+  • leadCustomerInfo.customerName  →  leadcustomerinfo_customername
+  • leadCustomerInfo.pan           →  leadcustomerinfo_pan
+  • leadCustomerInfo.creditScore   →  leadcustomerinfo_creditscore
+  • journey.journeyType            →  journey_journeytype
+  • offer fields (loanoffers)      →  offer_provider, offer_roi, offer_emi, offer_loanamount
+Use the database prefix 'sachet' for these tables: sachet.leadorderinfo, sachet.loanoffers.
+Never use camelCase or dot-notation for these columns — always use the flat snake_case name."""
 
 
 @dataclass

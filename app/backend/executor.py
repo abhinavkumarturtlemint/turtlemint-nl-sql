@@ -1,25 +1,43 @@
-"""Query executor — two backends, zero local storage.
+"""Query executor — three backends, zero local storage.
 
   api_duckdb      (default)
-      1. Calls Turtlemint OpenMetadata API to fetch live schema + sample data
-      2. Loads the rows into an in-memory DuckDB table (no files, no chdb)
-      3. Adapts ClickHouse SQL → DuckDB SQL (strips db prefix, translates fns)
-      4. Executes and returns results
+      1a. For OpenMetadata tables: calls Turtlemint API → pipe-delimited rows
+      1b. For BSON tables: loads .bson.gz file → flattens nested fields
+      2.  Loads all rows into an in-memory DuckDB table
+      3.  Adapts ClickHouse SQL → DuckDB SQL (strips db prefix, translates fns)
+      4.  Executes and returns results
 
   clickhouse_http (production)
       Sends SQL directly to a real ClickHouse HTTP endpoint.
       Set DB_BACKEND=clickhouse_http + CLICKHOUSE_URL in .env when you have
       the connection details from engineering. No code change needed.
 
-chdb has been removed entirely. All data comes from the API.
+chdb has been removed entirely. All data comes from the API or local BSON files.
 """
 from __future__ import annotations
 
+import gzip
+import os
 import re
 from dataclasses import dataclass
-from typing import Any, List
+from typing import Any, Dict, List
 
 from app.backend import config
+
+# ---------------------------------------------------------------------------
+# BSON table registry — maps short table name → path relative to project root
+# ---------------------------------------------------------------------------
+
+_PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+BSON_TABLE_MAP: Dict[str, str] = {
+    "leadorderinfo": os.path.join(
+        _PROJECT_ROOT, "Sachet-DB-Stage", "turtlefin", "LeadOrderInfo.bson.gz"
+    ),
+    "loanoffers": os.path.join(
+        _PROJECT_ROOT, "Sachet-DB-Stage-Loanoffers", "turtlefin", "LoanOffers.bson.gz"
+    ),
+}
 
 
 class ExecutorError(RuntimeError):
@@ -76,6 +94,115 @@ def _fetch_api_data(table_name: str) -> List[dict]:
     return rows
 
 
+# ---------------------------------------------------------------------------
+# Backend 1b — Local BSON file loader
+# ---------------------------------------------------------------------------
+
+# Top-level keys that are deeply nested internal request/response mirrors —
+# skipping them halves column count and removes duplicate data.
+_BSON_SKIP = {
+    "leadservicedata", "externalleaddata", "leadstageinfo",
+    "analyticsdata", "initialleadentry", "consentmap",
+    "dashboardsummarycount", "mis", "otherdetails",
+    "currentleadactor", "rejecttracking",
+}
+
+
+def _flatten_doc(doc: dict, prefix: str = "", sep: str = "_") -> dict:
+    """Recursively flatten a nested dict, lowercasing all keys."""
+    out: dict = {}
+    for k, v in doc.items():
+        key = (prefix + sep + k if prefix else k).lower().replace("-", "_")
+        base = key.split(sep)[0]
+        if base in _BSON_SKIP:
+            continue
+        if isinstance(v, dict):
+            out.update(_flatten_doc(v, key, sep))
+        elif isinstance(v, list):
+            # Don't recurse into lists here — handled separately for offers[]
+            pass
+        else:
+            out[key] = None if v is None else str(v)
+    return out
+
+
+def _load_bson_table(table_name: str) -> "pd.DataFrame":
+    """Load a .bson.gz file into a pandas DataFrame.
+
+    Flattens nested fields with _ separator (lowercase).
+    For loanoffers: explodes the offers[] array so each offer = one row.
+    """
+    import pandas as pd
+
+    path = BSON_TABLE_MAP.get(table_name.lower())
+    if not path or not os.path.exists(path):
+        raise ExecutorError(
+            f"BSON file not found for table '{table_name}': {path}"
+        )
+
+    try:
+        import bson as _bson
+    except ImportError:
+        raise ExecutorError(
+            "pymongo is required to read BSON files. "
+            "Run: .venv/bin/pip install pymongo"
+        )
+
+    with gzip.open(path, "rb") as fh:
+        raw = fh.read()
+
+    records = []
+    offset = 0
+    while offset < len(raw):
+        size = int.from_bytes(raw[offset: offset + 4], "little")
+        if size <= 0 or offset + size > len(raw):
+            break
+        doc = _bson.decode(raw[offset: offset + size])
+
+        if table_name.lower() == "loanoffers":
+            # Explode offers[] — one row per offer, parent fields repeated
+            parent = _flatten_doc(doc)
+            offers = doc.get("offers", [])
+            if offers:
+                for offer in offers:
+                    row = dict(parent)
+                    for ok, ov in offer.items():
+                        if not isinstance(ov, (dict, list)):
+                            row["offer_" + ok.lower()] = None if ov is None else str(ov)
+                    records.append(row)
+            else:
+                records.append(parent)
+        else:
+            records.append(_flatten_doc(doc))
+
+        offset += size
+
+    if not records:
+        raise ExecutorError(f"No records found in BSON file for '{table_name}'")
+
+    df = pd.DataFrame(records)
+    df = df.replace({"None": None, "nan": None, "": None})
+
+    # Auto-cast numeric and datetime columns.
+    # Use a low threshold (5%) because MongoDB documents are sparse —
+    # many fields are absent/null for docs where they don't apply, but
+    # the column is still genuinely numeric when present.
+    for col in df.columns:
+        num = pd.to_numeric(df[col], errors="coerce")
+        if num.notna().sum() > max(1, len(df) * 0.05):  # >5% numeric → cast
+            df[col] = num
+            continue
+        if any(kw in col for kw in ("date", "at", "time")):
+            try:
+                dt = pd.to_datetime(df[col], errors="coerce", format="mixed", utc=True)
+                if dt.notna().sum() > 0:
+                    df[col] = dt
+            except Exception:
+                pass
+
+    return df
+
+
 def _extract_table_names(sql: str) -> List[str]:
     """Pull all table references from a SQL string (handles multi-level FQNs with hyphens).
 
@@ -100,14 +227,17 @@ def _adapt_sql_for_duckdb(sql: str) -> str:
     """Translate ClickHouse-specific SQL to DuckDB-compatible SQL.
 
     Handles:
-      - db.table references  →  table  (strip database prefix)
-      - toStartOfMonth(x)    →  date_trunc('month', x)
-      - toYear(x)            →  year(x)
-      - toMonth(x)           →  month(x)
-      - toDate(x)            →  CAST(x AS DATE)
-      - now()                →  current_timestamp
-      - count()              →  count(*)
-      - addMonths(x, n)      →  x + INTERVAL n MONTH
+      - db.table references       →  table  (strip database prefix)
+      - toStartOfMonth(x)         →  date_trunc('month', x)
+      - toYear(x)                 →  year(x)
+      - toMonth(x)                →  month(x)
+      - toDate(x)                 →  CAST(x AS DATE)
+      - now()                     →  current_timestamp
+      - count()                   →  count(*)
+      - addMonths(x, n)           →  x + INTERVAL n MONTH
+      - countIf(cond)             →  count(*) FILTER (WHERE cond)
+      - toFloat64OrNull(x)        →  TRY_CAST(x AS DOUBLE)
+      - toInt64OrNull(x)          →  TRY_CAST(x AS BIGINT)
     """
     adapted = sql
 
@@ -160,6 +290,27 @@ def _adapt_sql_for_duckdb(sql: str) -> str:
     # count() → count(*)
     adapted = re.sub(r'\bcount\s*\(\s*\)', 'count(*)', adapted, flags=re.IGNORECASE)
 
+    # countIf(cond) → count(*) FILTER (WHERE cond)
+    adapted = re.sub(
+        r'\bcountIf\s*\(([^)]+)\)',
+        r'count(*) FILTER (WHERE \1)',
+        adapted, flags=re.IGNORECASE,
+    )
+
+    # toFloat64OrNull(x) → TRY_CAST(x AS DOUBLE)
+    adapted = re.sub(
+        r'\btoFloat64OrNull\s*\(([^)]+)\)',
+        r'TRY_CAST(\1 AS DOUBLE)',
+        adapted, flags=re.IGNORECASE,
+    )
+
+    # toInt64OrNull(x) → TRY_CAST(x AS BIGINT)
+    adapted = re.sub(
+        r'\btoInt64OrNull\s*\(([^)]+)\)',
+        r'TRY_CAST(\1 AS BIGINT)',
+        adapted, flags=re.IGNORECASE,
+    )
+
     return adapted
 
 
@@ -180,35 +331,41 @@ def _run_api_duckdb(sql: str) -> QueryResult:
     tables_loaded = []
     for table in raw_tables:
         if table in known:
+            # --- OpenMetadata API table ---
             rows = _fetch_api_data(table)
             if rows:
                 df = pd.DataFrame(rows)
-                # Replace sentinel strings with NaN so pandas infers types correctly
                 df = df.replace({"None": None, "---": None, "": None})
-                # Auto-cast each column: try numeric first, then datetime, else keep string
                 for col in df.columns:
                     numeric = pd.to_numeric(df[col], errors="coerce")
                     if numeric.notna().sum() > 0:
                         df[col] = numeric
                         continue
-                    # Try datetime for columns with date-like names
                     if any(kw in col.lower() for kw in ("date", "at", "time", "dt")):
                         try:
-                            dt = pd.to_datetime(df[col], errors="coerce", format="mixed")
+                            dt = pd.to_datetime(df[col], errors="coerce", format="mixed", utc=True)
                             if dt.notna().sum() > 0:
                                 df[col] = dt
                                 continue
                         except Exception:
                             pass
-                # Register as DuckDB table
                 con.register(table, df)
                 tables_loaded.append(table)
 
+        elif table in BSON_TABLE_MAP:
+            # --- Local BSON file table ---
+            df = _load_bson_table(table)
+            con.register(table, df)
+            tables_loaded.append(table)
+
     if not tables_loaded:
+        bson_names = list(BSON_TABLE_MAP.keys())
         raise ExecutorError(
-            f"None of the tables in the SQL ({raw_tables}) are available via "
-            "the OpenMetadata API. Add them to openmetadata.TABLE_FQN_MAP or "
-            "provide ClickHouse credentials (DB_BACKEND=clickhouse_http)."
+            f"None of the tables in the SQL ({raw_tables}) are available. "
+            f"OpenMetadata tables: {list(known)}. "
+            f"Local BSON tables: {bson_names}. "
+            "Add the table to openmetadata.TABLE_FQN_MAP, BSON_TABLE_MAP, "
+            "or set DB_BACKEND=clickhouse_http for real ClickHouse."
         )
 
     # Adapt SQL: ClickHouse dialect → DuckDB dialect

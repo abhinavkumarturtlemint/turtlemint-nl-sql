@@ -50,6 +50,9 @@ EXAMPLES = [
     "Which state has the highest health premium?",
     "How many claims are still pending settlement?",
     "Average commission per partner tier",
+    "Loan lead funnel — how many leads at each stage?",
+    "Which lender has the most loan leads?",
+    "Compare loan offers by ROI and EMI across lenders",
 ]
 
 st.set_page_config(page_title="Turtlemint NL-SQL", page_icon="🐢", layout="wide")
