@@ -124,6 +124,75 @@ def do_plan(question, previous=None):
         st.session_state.tables_ms = plan.get("selected_tables", [])
 
 
+def do_refine(refine_text: str):
+    """One-click refine: merges question, generates SQL, and runs — all in one shot.
+
+    The user shouldn't have to click Generate SQL + Run query again just because
+    they typed a follow-up. This function chains all three steps automatically.
+    """
+    previous = st.session_state.enhanced
+    st.session_state.usage = {"calls": 0, "prompt_tokens": 0, "completion_tokens": 0}
+
+    # Step 1 — plan: merge previous + refinement into one coherent question
+    with st.spinner("Refining your question…"):
+        plan_resp = api_post("/plan", {
+            "question": refine_text,
+            "previous": previous,
+            "user_id": st.session_state.user_id,
+        })
+    add_usage(plan_resp)
+
+    if not plan_resp or not plan_resp.get("ok"):
+        st.session_state.plan = plan_resp
+        st.session_state.gen = None
+        st.session_state.run = None
+        return
+
+    merged_q = plan_resp.get("enhanced_question", refine_text)
+    # Use the newly planned tables; fall back to the tables that were already confirmed
+    new_tables = plan_resp.get("selected_tables") or st.session_state.tables_ms
+
+    # Step 2 — generate SQL for the merged question
+    with st.spinner("Writing SQL…"):
+        gen_resp = api_post("/generate", {
+            "question": merged_q,
+            "tables": new_tables,
+            "previous": previous,
+            "user_id": st.session_state.user_id,
+        })
+    add_usage(gen_resp)
+
+    if not gen_resp or not gen_resp.get("ok") or not gen_resp.get("guardrail_ok"):
+        st.session_state.plan = plan_resp
+        st.session_state.gen = gen_resp
+        st.session_state.run = None
+        st.session_state.enhanced = merged_q
+        st.session_state.tables_ms = new_tables
+        return
+
+    sql = gen_resp.get("sql", "")
+
+    # Step 3 — run the query
+    with st.spinner("Running query…"):
+        run_resp = api_post("/run", {
+            "sql": sql,
+            "question": merged_q,
+            "intent": plan_resp.get("intent", ""),
+            "tables": new_tables,
+            "user_id": st.session_state.user_id,
+        })
+    add_usage(run_resp)
+
+    # Commit everything to session state atomically
+    st.session_state.plan = plan_resp
+    st.session_state.gen = gen_resp
+    st.session_state.run = run_resp
+    st.session_state.enhanced = merged_q
+    st.session_state.tables_ms = new_tables
+    st.session_state.sql_editor = sql
+    st.session_state.refine = ""  # clear the refine text input
+
+
 # --- session defaults ---
 for key, default in {
     "user_id": "demo", "plan": None, "gen": None, "run": None,
@@ -317,9 +386,11 @@ if run is not None:
 
         # --- refinement ---
         st.markdown('<div class="tm-step">Refine</div>', unsafe_allow_html=True)
+        st.caption("Adjust this question — results update automatically.")
         refine = st.text_input("Adjust this question",
                                placeholder="e.g. only last month, or break down by state",
-                               key="refine")
-        if st.button("Refine") and refine.strip():
-            do_plan(refine.strip(), previous=st.session_state.enhanced)
+                               key="refine",
+                               label_visibility="collapsed")
+        if st.button("Refine", type="primary") and refine.strip():
+            do_refine(refine.strip())
             st.rerun()
