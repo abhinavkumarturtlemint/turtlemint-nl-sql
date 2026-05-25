@@ -24,7 +24,9 @@ Domain guide:
 - LoanOffers     → lender offers, offer comparison, offer ROI, offer EMI, offer status, GRID/IHUB route, processing fee, rejected offers
 - LoanLeads      → loan lead volume, lead quality, lead stage, partner loan leads, broker/tenant platform
 
-When the question mentions "offer", "lender", "EMI", "ROI", "loan", "credit score", "failed to get a loan", "did not receive an offer", "personal loan", or "sachet" — always choose Loans, LoanOffers, or LoanLeads (never Customers or Policies)."""
+When the question mentions "offer", "lender", "EMI", "ROI", "loan", "credit score", "failed to get a loan", "did not receive an offer", "personal loan", or "sachet" — always choose Loans, LoanOffers, or LoanLeads (never Customers or Policies).
+
+When the question asks for email/phone/contact/details of a person by name with NO mention of "partner", "agent", "POSP", "DP", or "advisor" — classify as Loans (loan customer lookup in leadorderinfo), NOT Partners."""
 
 
 def classify(question: str) -> Dict:

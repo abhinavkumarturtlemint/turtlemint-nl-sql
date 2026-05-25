@@ -17,10 +17,12 @@ tables that fully answer it. Return ONLY JSON: {"tables": ["..."], \
 "reason": "one short sentence"}.
 
 Key data source rules — use these to pick the right table:
-- Insurance policies, partners, agents, claims, commissions → policydetail (or policy/partner/claim/commission)
+- Insurance policies, claims, commissions → policydetail (or policy/claim/commission)
+- Insurance advisors/agents/POSP/DP → partner table (ONLY when question explicitly says partner/agent/advisor/POSP/DP)
 - Loan / lending / personal-loan customers, loan leads, lenders, ROI, EMI, credit score → leadorderinfo or loanoffers
-- When looking up a person by name and it is UNCLEAR whether they are an insurance customer or a loan customer → include BOTH policydetail AND leadorderinfo as candidates so both are searched.
-- "Find all information about [name]" or "customer name [name]" with no other context → ALWAYS include leadorderinfo alongside policydetail."""
+- "What is email/phone/contact of [person name]" with NO mention of partner/agent/insurance → leadorderinfo (loan customers have email in leadcustomerinfo_email)
+- "Find all information about [name]" or "customer name [name]" with no other context → ALWAYS include leadorderinfo alongside policydetail.
+- NEVER select only 'partner' for a generic person-name lookup — loan customers are in leadorderinfo, not partner."""
 
 
 def _candidates_block(candidates: List[str]) -> str:

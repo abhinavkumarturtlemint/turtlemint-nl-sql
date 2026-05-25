@@ -55,15 +55,18 @@ Do NOT use = for name comparisons — always use ILIKE '%...%' so partial matche
 Do NOT search only proposer_fname/proposer_lname — that will miss partners and agents.
 
 CRITICAL — Person name lookups: which table to use:
-Two completely separate data sources hold customer records:
-  1. policydetail  → insurance customers/partners (proposer_fname, proposer_lname, salesdetail_intermediaryname)
-  2. leadorderinfo → loan/lending customers (leadcustomerinfo_customername — SINGLE full-name field)
-When the question is "find all information about [name]" or "customer name [name]" with NO \
-mention of insurance/policy → search leadorderinfo FIRST using:
+Three data sources hold person records:
+  1. policydetail   → insurance customers/partners (proposer_fname, proposer_lname, salesdetail_intermediaryname)
+  2. leadorderinfo  → loan/lending customers (leadcustomerinfo_customername — SINGLE full-name field)
+  3. partner        → insurance advisors/agents (name column) — only use if question explicitly says "partner", "agent", "POSP", "DP", "advisor"
+
+When the question asks for email/phone/contact of a person by name with NO mention of \
+insurance/policy/partner/agent → ALWAYS use leadorderinfo:
   WHERE lower(leadcustomerinfo_customername) ILIKE '%name%'
-If both tables are provided in the schema, write a UNION or search whichever has the name. \
-Never assume an insurance table for a loan customer — MOHD NIFASAT BEG, ABHISHEK KUMAR, \
-NAVNEET YADAV etc. are loan customers in leadorderinfo, not policydetail.
+     OR lower(leadcustomerinfo_adhaarcustomername) ILIKE '%name%'
+The 'partner' table is for insurance agents, NOT for loan customers. \
+ABHISHEK KUMAR, NAVNEET YADAV, MOHD NIFASAT BEG etc. are loan customers in leadorderinfo.
+If both tables are in the schema, write a UNION or search leadorderinfo first.
 
 IMPORTANT — Sachet lending tables (leadorderinfo, loanoffers):
 These tables come from MongoDB BSON dumps. ALL column names are FLATTENED with underscores \

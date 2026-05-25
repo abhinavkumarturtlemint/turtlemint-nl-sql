@@ -335,16 +335,30 @@ def _extract_table_names(sql: str) -> List[str]:
       FROM policydetail
       FROM spectrum.policydetail
       FROM ch-spectrum.spectrum.spectrum.policydetail
+      FROM "ch-spectrum.spectrum.spectrum".policydetail   ← quoted FQN prefix
+      FROM "ch-spectrum.spectrum.spectrum.policydetail"   ← fully quoted FQN
     Always returns just the final table name (last dot-separated segment).
     """
-    # Allow hyphens in each segment (ch-spectrum is a valid ClickHouse db name)
-    pattern = r"(?:FROM|JOIN)\s+((?:[\w\-]+\.)*[\w]+)"
-    matches = re.findall(pattern, sql, re.IGNORECASE)
     tables = []
-    for m in matches:
-        # Take only the last segment: ch-spectrum.spectrum.spectrum.policydetail → policydetail
-        parts = m.split(".")
+
+    # Pattern A: quoted FQN prefix — FROM "db.schema.schema".tablename
+    # e.g. FROM "ch-spectrum.spectrum.spectrum".partner → partner
+    for m in re.finditer(r'(?:FROM|JOIN)\s+"[^"]+"\.([\w]+)', sql, re.IGNORECASE):
+        tables.append(m.group(1).lower())
+
+    # Pattern B: fully-quoted FQN — FROM "db.schema.schema.tablename"
+    # e.g. FROM "ch-spectrum.spectrum.spectrum.partner" → partner
+    # Negative lookahead (?!\.) ensures the closing quote is NOT followed by a dot
+    # (that would make it a quoted-prefix case, already handled by Pattern A).
+    for m in re.finditer(r'(?:FROM|JOIN)\s+"[^"]*\.([\w]+)"(?!\s*\.)', sql, re.IGNORECASE):
+        tables.append(m.group(1).lower())
+
+    # Pattern C: unquoted (possibly hyphenated) FQN — FROM db.schema.tablename
+    # e.g. FROM ch-spectrum.spectrum.spectrum.policydetail → policydetail
+    for m in re.finditer(r'(?:FROM|JOIN)\s+((?:[\w\-]+\.)*[\w]+)', sql, re.IGNORECASE):
+        parts = m.group(1).split(".")
         tables.append(parts[-1].lower())
+
     return list(dict.fromkeys(tables))  # unique, preserve order
 
 
@@ -367,9 +381,26 @@ def _adapt_sql_for_duckdb(sql: str) -> str:
     adapted = sql
 
     # Strip any multi-level FQN prefix in FROM/JOIN clauses.
-    # Handles: ch-spectrum.spectrum.spectrum.policydetail → policydetail
-    #          spectrum.policydetail → policydetail
-    #          turtlemint.policy → policy
+    # Step 1: quoted FQN prefix — FROM "ch-spectrum.spectrum.spectrum".partner → FROM partner
+    adapted = re.sub(
+        r'\b(FROM|JOIN)\s+"[^"]+"\.([\w]+)',
+        lambda m: f"{m.group(1)} {m.group(2)}",
+        adapted,
+        flags=re.IGNORECASE,
+    )
+
+    # Step 2: fully-quoted FQN — FROM "ch-spectrum.spectrum.spectrum.partner" → FROM partner
+    # Negative lookahead (?!\.) ensures we only match when the quote ends the FQN
+    # (not quoted-prefix cases like "prefix".table, which are handled in Step 1)
+    adapted = re.sub(
+        r'\b(FROM|JOIN)\s+"[^"]*\.([\w]+)"(?!\s*\.)',
+        lambda m: f"{m.group(1)} {m.group(2)}",
+        adapted,
+        flags=re.IGNORECASE,
+    )
+
+    # Step 3: unquoted hyphenated FQN — ch-spectrum.spectrum.spectrum.policydetail → policydetail
+    #         also handles: spectrum.policydetail → policydetail, turtlemint.policy → policy
     adapted = re.sub(
         r'\b(FROM|JOIN)\s+((?:[\w\-]+\.)+)([\w]+)',
         lambda m: f"{m.group(1)} {m.group(3)}",
