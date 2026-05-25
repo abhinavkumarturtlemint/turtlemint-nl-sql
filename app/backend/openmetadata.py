@@ -42,6 +42,10 @@ TABLE_FQN_MAP: Dict[str, str] = {
     "policydetail": "ch-spectrum.spectrum.spectrum.policydetail",
 }
 
+# BSON tables live in local .bson/.bson.gz files — they must NEVER be looked up
+# via the OpenMetadata API, even if OpenMetadata happens to know about them.
+_BSON_TABLES: set = {"leadorderinfo", "loanoffers"}
+
 # ---------------------------------------------------------------------------
 # Caches
 # ---------------------------------------------------------------------------
@@ -223,6 +227,11 @@ def schema_prompt_for_real_tables(
     dummy_tables:  List[str] = []
 
     for table in tables:
+        # BSON tables always use local files — never hit the OpenMetadata API
+        if table.lower() in _BSON_TABLES:
+            dummy_tables.append(table)
+            continue
+
         fqn = _resolve_fqn(table.lower())
         if fqn:
             prompt = get_column_prompt(table.lower())

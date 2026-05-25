@@ -212,6 +212,94 @@ def _load_bson_table(table_name: str) -> "pd.DataFrame":
     return df
 
 
+# Cache for bson schema strings so we only build them once per process
+_bson_schema_cache: Dict[str, str] = {}
+
+
+def bson_schema_context(table_name: str) -> str:
+    """Build a full LLM-ready schema string from the actual BSON data.
+
+    Reads every column that exists in the real data (not just the 35 we
+    hardcoded in schema_catalog) so the LLM can answer ANY question.
+    Filters to columns with at least 1% non-null values to skip junk.
+    For low-cardinality string columns (<= 20 unique values) shows samples.
+    """
+    import pandas as pd
+
+    name = table_name.lower()
+    if name in _bson_schema_cache:
+        return _bson_schema_cache[name]
+
+    try:
+        df = _load_bson_table(name)
+    except ExecutorError:
+        return ""
+
+    n = len(df)
+    min_present = max(1, n * 0.01)   # column must have >= 1% non-null rows
+
+    # Table header
+    db_map = {"leadorderinfo": "sachet", "loanoffers": "sachet"}
+    db = db_map.get(name, "sachet")
+    desc_map = {
+        "leadorderinfo": (
+            "Sachet lending platform — personal-loan and other lending leads "
+            f"({n:,} records). Tracks every lead from creation through "
+            "lender matching, offer, payment, and issuance."
+        ),
+        "loanoffers": (
+            "Lender offer responses for loan applications "
+            f"({n:,} records, one row per lender offer). "
+            "Exploded from the offers[] array — each lender's ROI, EMI, "
+            "loan amount, processing fee, and approval/rejection status."
+        ),
+    }
+    lines = [
+        f"Table: {name}  (database: {db}, query as: {db}.{name})",
+        desc_map.get(name, ""),
+        "IMPORTANT: All column names are flattened snake_case from MongoDB "
+        "(e.g. leadCustomerInfo.pan → leadcustomerinfo_pan). "
+        "Use exact column names as listed below.",
+        "",
+        "Columns:",
+    ]
+
+    for col in df.columns:
+        series = df[col]
+        non_null = series.notna().sum()
+        if non_null < min_present:
+            continue   # skip columns that are almost always empty
+
+        dtype = str(series.dtype)
+        if "datetime" in dtype or "timestamp" in dtype.lower():
+            dtype_label = "DateTime"
+        elif "float" in dtype or "int" in dtype:
+            dtype_label = "Numeric"
+        else:
+            dtype_label = "String"
+
+        # For low-cardinality strings, show sample values
+        sample = ""
+        if dtype_label == "String":
+            unique_vals = series.dropna().unique()
+            if 1 < len(unique_vals) <= 20:
+                sample_list = sorted(str(v) for v in unique_vals[:10])
+                sample = f"  values: {', '.join(sample_list)}"
+            elif len(unique_vals) == 1:
+                sample = f"  always: {unique_vals[0]}"
+        elif dtype_label == "Numeric":
+            mn = series.min()
+            mx = series.max()
+            sample = f"  range: {mn} – {mx}"
+
+        pct = int(100 * non_null / n)
+        lines.append(f"  {col} ({dtype_label}, {pct}% filled){sample}")
+
+    result = "\n".join(lines)
+    _bson_schema_cache[name] = result
+    return result
+
+
 def _extract_table_names(sql: str) -> List[str]:
     """Pull all table references from a SQL string (handles multi-level FQNs with hyphens).
 
@@ -339,7 +427,15 @@ def _run_api_duckdb(sql: str) -> QueryResult:
 
     tables_loaded = []
     for table in raw_tables:
-        if table in known:
+        # BSON tables are checked FIRST — they must never hit the OpenMetadata API
+        # even if OpenMetadata happens to know about a table with the same name.
+        if table in BSON_TABLE_MAP:
+            # --- Local BSON file table ---
+            df = _load_bson_table(table)
+            con.register(table, df)
+            tables_loaded.append(table)
+
+        elif table in known:
             # --- OpenMetadata API table ---
             rows = _fetch_api_data(table)
             if rows:
@@ -360,12 +456,6 @@ def _run_api_duckdb(sql: str) -> QueryResult:
                             pass
                 con.register(table, df)
                 tables_loaded.append(table)
-
-        elif table in BSON_TABLE_MAP:
-            # --- Local BSON file table ---
-            df = _load_bson_table(table)
-            con.register(table, df)
-            tables_loaded.append(table)
 
     if not tables_loaded:
         bson_names = list(BSON_TABLE_MAP.keys())

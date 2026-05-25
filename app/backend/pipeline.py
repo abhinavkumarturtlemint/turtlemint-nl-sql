@@ -27,15 +27,19 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
-from app.backend import glossary, guardrails, openmetadata, semantics, sql_generator
+from app.backend import executor, glossary, guardrails, openmetadata, semantics, sql_generator
 from app.backend.agents import (column_prune, intent_agent, prompt_enhancer,
                                 result_formatter, table_agent)
 from app.backend.schema_catalog import schema_prompt_for, table_names
 
 
-# All known tables = dummy catalog tables + real OpenMetadata tables
+# All known tables = dummy catalog tables + BSON tables + real OpenMetadata tables
 def _all_table_names() -> List[str]:
-    return list(dict.fromkeys(table_names() + openmetadata.known_tables()))
+    return list(dict.fromkeys(
+        table_names()
+        + list(executor.BSON_TABLE_MAP.keys())
+        + openmetadata.known_tables()
+    ))
 
 
 @dataclass
@@ -85,20 +89,35 @@ class SqlPlan:
     schema_source: str             # "live_api" | "catalog" | "mixed"
 
 
+_BSON_TABLES = openmetadata._BSON_TABLES   # re-use the same set
+
+
 def build_sql(question: str, tables: List[str], previous: Optional[str] = None) -> SqlPlan:
     # ── Step 1: fetch schema ─────────────────────────────────────────────────
+    # BSON tables  → dynamic schema built from the actual data files
     # Real tables  → call OpenMetadata API live (cached 5 min)
     # Dummy tables → use hardcoded schema_catalog
-    real_contexts, dummy_tables = openmetadata.schema_prompt_for_real_tables(tables)
+    bson_tables   = [t for t in tables if t.lower() in _BSON_TABLES]
+    other_tables  = [t for t in tables if t.lower() not in _BSON_TABLES]
+
+    real_contexts, dummy_tables = openmetadata.schema_prompt_for_real_tables(other_tables)
 
     schema_parts: List[str] = []
 
-    # Live API schema (real tables) — already LLM-ready, injected as-is
+    # BSON schema (dynamic — built from real file, all columns visible to LLM)
+    if bson_tables:
+        schema_parts.append("=== SACHET LENDING DATA (LOCAL BSON FILES) ===")
+        for t in bson_tables:
+            ctx = executor.bson_schema_context(t)
+            if ctx:
+                schema_parts.append(ctx)
+
+    # Live API schema (real OpenMetadata tables)
     if real_contexts:
         schema_parts.append("=== LIVE SCHEMA FROM OPENMETADATA API ===")
         schema_parts.extend(real_contexts)
 
-    # Fallback schema (dummy/unknown tables) — from hardcoded catalog
+    # Fallback schema (dummy/catalog tables)
     if dummy_tables:
         pruned = column_prune.prune(question, dummy_tables)
         schema_parts.append("=== CATALOG SCHEMA ===")
@@ -109,9 +128,11 @@ def build_sql(question: str, tables: List[str], previous: Optional[str] = None) 
     schema_text = "\n\n".join(schema_parts)
 
     # Determine schema source label for UI / audit
-    if real_contexts and not dummy_tables:
+    if bson_tables and not real_contexts and not dummy_tables:
+        schema_source = "bson_local"
+    elif real_contexts and not dummy_tables and not bson_tables:
         schema_source = "live_api"
-    elif real_contexts and dummy_tables:
+    elif real_contexts or bson_tables:
         schema_source = "mixed"
     else:
         schema_source = "catalog"
