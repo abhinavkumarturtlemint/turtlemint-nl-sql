@@ -161,7 +161,7 @@ with st.sidebar:
 
     schema = api_get("/schema")
     if schema:
-        with st.expander("Schema (dummy OpenMetadata)"):
+        with st.expander("Available tables & columns"):
             for t in schema["catalog"]["tables"]:
                 st.markdown(f"**{t['name']}** — {t['description']}")
                 st.caption(", ".join(c["name"] for c in t["columns"]))
@@ -246,9 +246,11 @@ if gen is not None:
         # Show schema source badge
         src = gen.get("schema_source", "catalog")
         if src == "live_api":
-            st.success("🌐 Schema fetched live from OpenMetadata API")
+            st.success("🌐 Schema fetched live from Turtlemint data catalog")
         elif src == "mixed":
-            st.info("🌐 Schema: live API (real tables) + catalog (dummy tables)")
+            st.info("🌐 Schema: Turtlemint data catalog (real tables) + local catalog")
+        elif src == "bson_local":
+            st.success("📂 Schema loaded from Sachet lending data")
         if gen.get("explanation"):
             st.info(gen["explanation"])
         st.text_area("SQL (you can edit it)", key="sql_editor", height=130)
@@ -274,16 +276,24 @@ if run is not None:
         if run.get("summary"):
             st.success(run["summary"])
 
-        # Warn when 0 rows returned in sample-data mode
+        # Warn when 0 rows returned
         if run["row_count"] == 0:
-            st.warning(
-                "⚠️ **0 rows found** — but this may not mean the record doesn't exist.\n\n"
-                "The current mode (**api_duckdb**) searches only the **25 sample rows** "
-                "returned by the OpenMetadata API, not the full ClickHouse database. "
-                "The person or record you're looking for may exist in the full dataset.\n\n"
-                "👉 To search the full database, engineering needs to set "
-                "`DB_BACKEND=clickhouse_http` with real ClickHouse credentials."
-            )
+            tables_used = st.session_state.get("tables_ms", [])
+            is_bson = any(t in {"leadorderinfo", "loanoffers"} for t in (tables_used or []))
+            if is_bson:
+                st.warning(
+                    "⚠️ **0 rows found.**\n\n"
+                    "No matching records were found in the Sachet lending data for this query. "
+                    "Try broadening your filter — for example, use a partial name or remove "
+                    "optional conditions."
+                )
+            else:
+                st.warning(
+                    "⚠️ **0 rows found** — this may not mean the record doesn't exist.\n\n"
+                    "The query ran on a **sample** of the Turtlemint database. "
+                    "The record you're looking for may exist in the full dataset. "
+                    "Please contact the data team if you need to search the complete database."
+                )
 
         m1, m2, m3 = st.columns(3)
         m1.metric("Rows", run["row_count"])
