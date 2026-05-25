@@ -261,7 +261,7 @@ metrics:
     label: "Loan Customer / Lead Lookup"
     description: "Look up a loan applicant by name, PAN, mobile number, or lead ID. Returns contact details, loan amount, credit score, lead stage. Use leadorderinfo. Key columns: leadcustomerinfo_customername (full name in ONE field), leadcustomerinfo_mobilenumber, leadcustomerinfo_pan, leadcustomerinfo_creditscore, leadcustomerinfo_loanamount, leadstage, provider, partnerid."
     tables: [leadorderinfo]
-    keywords: [pan, pan number, mobile, phone number, phone, mobile number, contact, lead id, loan applicant, loan customer, find person, person with pan, person with mobile, details of loan, sachet customer, sachet lead, loan lead, lending customer, borrower, applicant name, find applicant, customer name loan, externalleadid, referenceid, aggregatorid, external lead id, reference id, aggregator id, aadhaar name, adhaar name, adhar name, aadhaar customer]
+    keywords: [pan, pan number, mobile, phone number, phone, mobile number, contact, lead id, loan applicant, loan customer, find person, person with pan, person with mobile, details of loan, sachet customer, sachet lead, loan lead, lending customer, borrower, applicant name, find applicant, customer name loan, externalleadid, referenceid, aggregatorid, external lead id, reference id, aggregator id, aadhaar name, adhaar name, adhar name, aadhaar customer, email, customer email, uniqueid, unique id, partner application id, partnerapplicationid, lender application, kreditbee id, kyc, kyc status, kyc retry]
 
   - name: loan_city_analysis
     label: "Loan Leads by City"
@@ -331,9 +331,39 @@ metrics:
 
   - name: broker_tenant_analysis
     label: "Broker & Tenant Platform Analysis"
-    description: "Loan leads broken down by broker (turtlemint/turtlefin/centralbank) or tenant/platform (flipkart/nsdl/turtlemint/itsEazr)"
+    description: "Loan leads broken down by broker (turtlemint/turtlefin/centralbank) or tenant/platform (flipkart/nsdl/turtlemint/itsEazr/pharmeasy)"
     tables: [leadorderinfo]
-    keywords: [broker, tenant, platform, turtlefin, centralbank, flipkart, nsdl, itseazr, which platform, broker leads, by broker, by tenant]
+    keywords: [broker, tenant, platform, turtlefin, centralbank, flipkart, nsdl, itseazr, which platform, broker leads, by broker, by tenant, pharmeasy]
+
+  - name: bre_rejection_analysis
+    label: "BRE Rejection Analysis"
+    description: "Business Rules Engine (BRE) rejections — pre-lender rule-based credit check rejections. BRE runs BEFORE the live lender API and rejects if credit score is below threshold. Columns: brerejectioncode, brerejectionreason, bremaxloaneligibility in leadorderinfo."
+    tables: [leadorderinfo]
+    keywords: [bre, business rules engine, bre rejection, rule engine, credit threshold, score below threshold, bre failed, bre reject, eligibility rule, pre-api reject, rule based reject, bre code, bre reason, max eligibility]
+
+  - name: lead_status_analysis
+    label: "Lead Status / Final Outcome Analysis"
+    description: "Breakdown of leads by final outcome status (leadstatus) — DIFFERENT from lead stage. Status tracks WHAT happened: inProgress, PAYMENT_INITIATED, PAYMENT_REJECTED, PROPOSAL_INITIATED, POLICY_ISSUED, Lead Verified, Application Not Submitted."
+    tables: [leadorderinfo]
+    keywords: [lead status, final status, payment initiated, payment rejected, policy issued, proposal initiated, draft, lead verified, application not submitted, how many paid, how many rejected at payment, outcome breakdown, final outcome, payment failure, payment success, status breakdown]
+
+  - name: utm_attribution
+    label: "UTM / Marketing Attribution"
+    description: "Loan leads attributed by marketing channel: utm_source (google/facebook/partner), utm_medium (cpc/email/referral), utm_campaign — tracks which campaigns drive loan applications"
+    tables: [leadorderinfo]
+    keywords: [utm, utm source, utm medium, utm campaign, marketing channel, traffic source, campaign attribution, which campaign, google ads, facebook, referral, organic, cpc, marketing attribution, lead source campaign]
+
+  - name: external_lender_analysis
+    label: "External Lender / NBFCs Analysis"
+    description: "Leads/offers from external NBFCs routed via Turtlemint: KreditBee, Fibe (Early Salary), InCred, MPokket, Nira, Prefr — tracked under leadextrainfo_additionaldetails_product_productprovider"
+    tables: [leadorderinfo]
+    keywords: [kreditbee, fibe, incred, mpokket, nira, prefr, early salary, nbfc, external lender, external provider, marketplace lender, non-bank lender, which nbfc, nbfc leads]
+
+  - name: partner_application_lookup
+    label: "Partner / Lender Application ID Lookup"
+    description: "Look up a lead by lender-assigned application ID (partnerapplicationid, e.g. SMFGPL025300) or Turtlemint referenceid or aggregatorid. Useful when a lender provides their own application number for tracking."
+    tables: [loanoffers, leadorderinfo]
+    keywords: [partner application id, partnerapplicationid, lender application id, smfg application, lender ref, lender id, application number, smfgpl, application reference, lender application number]
 
 
 dimensions:
@@ -471,8 +501,8 @@ dimensions:
     label: "Journey Type"
     table: leadorderinfo
     column: journey_journeytype
-    values: [assisted, direct]
-    keywords: [journey type, assisted journey, direct journey, partner assisted, self serve, self-serve]
+    values: [assisted, direct, Redirect]
+    keywords: [journey type, assisted journey, direct journey, partner assisted, self serve, self-serve, redirect journey, redirected journey, redirect flow, external platform redirect]
 
   - name: employment_type
     label: "Employment Type"
@@ -515,8 +545,8 @@ dimensions:
     label: "Tenant / Platform"
     table: leadorderinfo
     column: tenant
-    values: [turtlemint, turtlefin, centralbank, flipkart, nsdl, itsEazr]
-    keywords: [tenant, platform, flipkart, nsdl, which platform, turtlefin, itsEazr]
+    values: [turtlemint, turtlefin, centralbank, flipkart, nsdl, itsEazr, pharmeasy]
+    keywords: [tenant, platform, flipkart, nsdl, which platform, turtlefin, itsEazr, pharmeasy, distribution platform, which channel]
 
   - name: rejection_reason
     label: "Loan Rejection Reason"
@@ -531,6 +561,26 @@ dimensions:
     column: leadextrainfo_additionaldetails_userquality
     values: [Prime, Sub_Prime, REJECTS]
     keywords: [user quality, prime, sub prime, sub-prime, rejects, user segment, quality segment]
+
+  - name: lead_status_dim
+    label: "Lead Status (Final Outcome)"
+    table: leadorderinfo
+    column: leadstatus
+    values: [inProgress, Lead Verified, PAYMENT_INITIATED, PAYMENT_REJECTED, PROPOSAL_INITIATED, POLICY_ISSUED, Application Not Submitted, DRAFT, any, closed_won, active]
+    keywords: [lead status, final status, outcome, payment initiated, payment rejected, policy issued, proposal initiated, draft lead, lead verified, in progress, application submitted, final outcome, lead outcome]
+
+  - name: customer_segment
+    label: "Customer Segment"
+    table: loanoffers
+    column: customersegment
+    values: [A1]
+    keywords: [customer segment, segment, A1 segment, premium segment, high value segment, customer tier]
+
+  - name: bre_result
+    label: "BRE Rejection Code"
+    table: leadorderinfo
+    column: brerejectioncode
+    keywords: [bre rejection, business rules engine, bre code, bre reason, bre failed, rule engine reject, eligibility rule, credit threshold, score threshold, below threshold]
 
 
 business_terms:
@@ -845,6 +895,67 @@ business_terms:
     definition: "Names are stored in MULTIPLE columns in policydetail — choose the right one: (1) Partner / agent / DP / intermediary: use salesdetail_intermediaryname (stores full name as one string, e.g. 'mahjabin khatun'). (2) Customer / proposer / insured: use proposer_fname AND proposer_lname (split into two columns). (3) Area Manager: salesdetail_am. (4) RM / Relationship Manager: salesdetail_rm. (5) SM: salesdetail_sm. When the person's role is unknown, search ALL name columns with OR: lower(salesdetail_intermediaryname) ILIKE '%name%' OR lower(proposer_fname) ILIKE '%name%'."
     table: policydetail
     keywords: [client, customer name, insured, proposer, policy holder, name, person, partner name, agent, intermediary, give details, details of]
+
+  # ── New terms from meeting notes + BSON audit ─────────────────────────────
+
+  - term: "reference ID"
+    definition: "referenceid — Turtlemint's internal reference ID, UNIQUE PER LENDER per customer journey (e.g. AH59FO682DT). Each lender involved in the same customer's loan application gets a different reference ID. Do NOT confuse with aggregatorid which is customer-level and stays the same across all lenders."
+    sql_filter: "referenceid = '<id>'"
+    table: leadorderinfo
+    keywords: [reference id, referenceid, ref id, reference number, lead reference, internal reference]
+
+  - term: "aggregator ID"
+    definition: "aggregatorid — customer-level ID that remains CONSISTENT ACROSS ALL LENDERS for the same customer journey (e.g. AHB02UYGW02). Use this to track one customer's journey across multiple lenders. Different from referenceid which changes per lender."
+    sql_filter: "aggregatorid = '<id>'"
+    table: leadorderinfo
+    keywords: [aggregator id, aggregatorid, agg id, customer journey id, cross-lender id, consistent id, customer level id]
+
+  - term: "partner application ID"
+    definition: "partnerapplicationid — application ID assigned by the LENDER's own system (not Turtlemint). e.g. SMFG assigns 'SMFGPL025300'. Use this when a lender gives their own application number. Found in loanoffers table."
+    sql_filter: "partnerapplicationid = '<id>'"
+    table: loanoffers
+    keywords: [partner application id, partnerapplicationid, lender application id, lender application number, smfg application id, lender ref number, bank application id]
+
+  - term: "Business Rules Engine (BRE)"
+    definition: "BRE — Business Rules Engine that runs BEFORE the live lender API call. It applies credit score thresholds, pincode checks, and eligibility rules. If a customer's credit score is below the configured threshold (X), BRE rejects the lead immediately without calling the lender API. Stored in brerejectioncode and brerejectionreason. 'TM-BRE-failed' in offer message = BRE rejection."
+    sql_filter: "brerejectioncode IS NOT NULL AND brerejectioncode != ''"
+    table: leadorderinfo
+    keywords: [bre, business rules engine, rule engine, bre rejection, credit score threshold, below threshold, bre failed, bre reject, tm-bre-failed, eligibility rule, rule based, pincode check]
+
+  - term: "credit score normalization"
+    definition: "CRIF bureau credit scores: some vendor data conventions ADD 1000 to the raw score before storing (e.g. raw stored value 1791 → actual credit score 791). To get the REAL credit score, subtract 1000: actual_score = stored_value - 1000. This applies to leadcustomerinfo_creditinfocrif_creditscore and leadcustomerinfo_creditscore when the value is > 1000. Normal CRIF scores are 300–900."
+    sql_filter: "toFloat64OrNull(leadcustomerinfo_creditinfocrif_creditscore) - 1000"
+    table: leadorderinfo
+    keywords: [credit score normalization, actual credit score, raw credit score, crif score 1000, subtract 1000, real score, bureau score adjustment, actual cibil, vendor score]
+
+  - term: "Redirect journey"
+    definition: "A third journey type where the customer is redirected from an external platform (Flipkart, NSDL, Pharmeasy etc.) to Turtlemint to complete their loan application — journey_journeytype = 'Redirect'. Different from: assisted (partner-led) and direct (pure self-serve)."
+    sql_filter: "journey_journeytype = 'Redirect'"
+    table: leadorderinfo
+    keywords: [redirect journey, redirected, redirect flow, external platform, flipkart journey, nsdl journey, pharmeasy journey, redirect type, redirected customer]
+
+  - term: "customer segment A1"
+    definition: "customersegment = 'A1' — indicates a premium / high-value customer segment. Present in loanoffers table. Currently only 'A1' is seen in data."
+    sql_filter: "customersegment = 'A1'"
+    table: loanoffers
+    keywords: [customer segment, A1, segment A1, premium customer, high value customer, segment code]
+
+  - term: "KYC retry count"
+    definition: "kycretrycount — number of times the customer re-attempted KYC (Know Your Customer) verification. High retry count indicates KYC friction. 0 = passed first attempt."
+    sql_filter: "kycretrycount > 0"
+    table: leadorderinfo
+    keywords: [kyc retry, kyc count, kyc attempts, kyc retries, kyc failed, kyc verification count, how many kyc attempts]
+
+  - term: "lead status vs lead stage"
+    definition: "Two DIFFERENT fields: (1) leadstage = WHERE the customer currently IS in the funnel (quote, credit-stage, proposal, payment, issuance). (2) leadstatus = WHAT the final outcome was (inProgress, PAYMENT_INITIATED, PAYMENT_REJECTED, POLICY_ISSUED, Lead Verified, Application Not Submitted). Use leadstage for funnel analysis; use leadstatus for outcome/success tracking."
+    table: leadorderinfo
+    keywords: [lead stage vs status, stage or status, stage and status, what is lead status, what is lead stage, difference between stage and status, leadstage leadstatus]
+
+  - term: "UTM attribution"
+    definition: "Marketing attribution via UTM parameters: utm_source (google/facebook/partner), utm_medium (cpc/email/referral), utm_campaign. These track which marketing channel or campaign generated each loan lead."
+    sql_filter: "utm_source IS NOT NULL AND utm_source != ''"
+    table: leadorderinfo
+    keywords: [utm, utm source, utm campaign, utm medium, marketing attribution, traffic source, campaign, which campaign, google, facebook, referral source, organic traffic]
 
   - term: "has settlement"
     definition: "Applicant has a settled credit account on CRIF bureau — leadcustomerinfo_creditinfocrif_hassettlement = 'True'. Indicates past debt settlement, a negative credit signal."
