@@ -12,7 +12,19 @@ from app.backend.schema_catalog import DOMAINS
 
 _SYSTEM = """You classify a business data question into exactly one domain from \
 this list: {domains}. Return ONLY JSON: {{"intent": "<one domain>", \
-"confidence": <0..1>}}."""
+"confidence": <0..1>}}.
+
+Domain guide:
+- Partners       → insurance advisors / POSP / DP / agents signing up
+- Customers      → insurance policy holders / proposer / insured person
+- Policies       → insurance policy count, premium, renewals, lapse, sum assured
+- Claims         → insurance claims filed, settled, pending
+- Commissions    → partner commissions / earnings
+- Loans          → personal loans, loan customers, loan leads, sachet lending, funnel stages, CRIF, credit score, loan amount, EMI, ROI, pre-approval, rejection reason, user quality
+- LoanOffers     → lender offers, offer comparison, offer ROI, offer EMI, offer status, GRID/IHUB route, processing fee, rejected offers
+- LoanLeads      → loan lead volume, lead quality, lead stage, partner loan leads, broker/tenant platform
+
+When the question mentions "offer", "lender", "EMI", "ROI", "loan", "credit score", "failed to get a loan", "did not receive an offer", "personal loan", or "sachet" — always choose Loans, LoanOffers, or LoanLeads (never Customers or Policies)."""
 
 
 def classify(question: str) -> Dict:

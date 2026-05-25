@@ -225,7 +225,7 @@ metrics:
     label: "Loan Rejection Analysis"
     description: "Rejection reasons and rejection rates by lender or applicant attributes"
     tables: [loanoffers, leadorderinfo]
-    keywords: [rejection, rejected, reject, grid reject, api reject, rejection rate, why rejected, loan declined]
+    keywords: [rejection, rejected, reject, grid reject, api reject, rejection rate, why rejected, loan declined, loan failed, application failed, loan not approved, not approved, failed loan, didn't get loan, could not get loan, loan refused, denied loan, offer denied, application denied, ineligible]
 
   - name: loan_partner_performance
     label: "Partner Loan Performance"
@@ -279,7 +279,7 @@ metrics:
     label: "Loan Funnel Micro-Metrics"
     description: "OTP submission rate, form completion rate, and offer selection rate — lead engagement metrics in leadorderinfo"
     tables: [leadorderinfo]
-    keywords: [otp, otp submitted, form submitted, form completion, offer selected, offer selection, how many submitted, lead engagement, isofferselected, isleadformsubmitted, engaged leads]
+    keywords: [otp, otp submitted, form submitted, form completion, offer selected, offer selection, how many submitted, lead engagement, isofferselected, isleadformsubmitted, engaged leads, failed to get, get an offer, did not receive, never received, no offer received, customers without offer, leads without offer, offer not received, preoffer, pre offer drop off, dropped before offer, how many got no offer, failed to get a loan, couldn't get offer, unable to get offer, not get offer, receive an offer, without an offer, never got an offer, zero offers]
 
   - name: loan_rejection_detail
     label: "Grid vs API Rejection Breakdown"

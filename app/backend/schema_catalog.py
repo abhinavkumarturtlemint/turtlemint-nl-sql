@@ -354,7 +354,8 @@ def table_names() -> List[str]:
 
 
 # Business domains for the Intent Agent.
-DOMAINS: List[str] = ["Partners", "Customers", "Policies", "Claims", "Commissions"]
+DOMAINS: List[str] = ["Partners", "Customers", "Policies", "Claims", "Commissions",
+                      "Loans", "LoanOffers", "LoanLeads"]
 
 
 def get_table(name: str):
