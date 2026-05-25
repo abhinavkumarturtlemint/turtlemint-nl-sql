@@ -73,8 +73,24 @@ These tables come from MongoDB BSON dumps. ALL column names are FLATTENED with u
   • leadCustomerInfo.creditScore   →  leadcustomerinfo_creditscore
   • journey.journeyType            →  journey_journeytype
   • offer fields (loanoffers)      →  offer_provider, offer_roi, offer_emi, offer_loanamount
+  • CRIF bureau fields             →  leadcustomerinfo_creditinfocrif_creditscore,
+                                      leadcustomerinfo_creditinfocrif_dpd12month, etc.
 Use the database prefix 'sachet' for these tables: sachet.leadorderinfo, sachet.loanoffers.
-Never use camelCase or dot-notation for these columns — always use the flat snake_case name."""
+Never use camelCase or dot-notation for these columns — always use the flat snake_case name.
+
+IMPORTANT — leadquality values in sachet tables:
+Current data only has 'EXCELLENT' and 'GOOD' (not 'BAD' or 'MEDIUM').
+productcode in leadorderinfo has many values: personal-loan, PL, mobile, shop, \
+group-personal-accident, sachet-term, credit-card, home-loan, instant-loan, \
+business-loans, FD, BL, credit-score, lamf, active-360, wellness, etc.
+
+IMPORTANT — Name lookups in leadorderinfo / loanoffers:
+Three name fields exist — always search ALL of them with OR when looking up a person by name:
+  • leadcustomerinfo_customername  — primary name field (full name)
+  • leadcustomerinfo_adhaarcustomername — name as per Aadhaar card
+  • leadcustomerinfo_firstname + leadcustomerinfo_lastname — split name fields
+Example: WHERE lower(leadcustomerinfo_customername) ILIKE '%mohd nifasat%'
+            OR lower(leadcustomerinfo_adhaarcustomername) ILIKE '%mohd nifasat%'"""
 
 
 @dataclass

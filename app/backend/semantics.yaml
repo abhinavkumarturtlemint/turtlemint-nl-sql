@@ -199,9 +199,9 @@ metrics:
 
   - name: loan_lead_quality
     label: "Loan Lead Quality"
-    description: "Breakdown of loan leads by quality: GOOD, BAD, MEDIUM"
+    description: "Breakdown of loan leads by quality: EXCELLENT, GOOD (BAD and MEDIUM may appear in historical data)"
     tables: [leadorderinfo]
-    keywords: [lead quality, loan quality, good leads, bad leads, medium, quality score]
+    keywords: [lead quality, loan quality, excellent leads, good leads, bad leads, medium, quality score, leadquality]
 
   - name: loan_by_lender
     label: "Loans by Lender / Provider"
@@ -235,9 +235,15 @@ metrics:
 
   - name: credit_score_analysis
     label: "Credit Score Analysis"
-    description: "Average credit score, distribution, or % of applicants with available credit score"
+    description: "Average credit score, distribution, or % of applicants with available credit score (leadcustomerinfo_creditscore or leadcustomerinfo_creditinfocrif_creditscore)"
     tables: [leadorderinfo]
-    keywords: [credit score, cibil, crif, credit check, score, creditworthy, credit available]
+    keywords: [credit score, cibil, crif, credit check, score, creditworthy, credit available, bureau score]
+
+  - name: crif_bureau_analysis
+    label: "CRIF Bureau Deep Analysis"
+    description: "Detailed credit bureau metrics: DPD (Days Past Due), hard inquiries, active accounts, overdue, credit vintage, active tradeline. All columns prefixed leadcustomerinfo_creditinfocrif_*"
+    tables: [leadorderinfo]
+    keywords: [dpd, days past due, hard inquiry, hard inquiries, overdue, active accounts, credit vintage, tradeline, crif bureau, bureau data, credit bureau, active personal loans, secured accounts, unsecured accounts, foir, credit age, credit history, past due, enquiries]
 
   - name: loan_customer_demographics
     label: "Loan Customer Demographics"
@@ -255,7 +261,7 @@ metrics:
     label: "Loan Customer / Lead Lookup"
     description: "Look up a loan applicant by name, PAN, mobile number, or lead ID. Returns contact details, loan amount, credit score, lead stage. Use leadorderinfo. Key columns: leadcustomerinfo_customername (full name in ONE field), leadcustomerinfo_mobilenumber, leadcustomerinfo_pan, leadcustomerinfo_creditscore, leadcustomerinfo_loanamount, leadstage, provider, partnerid."
     tables: [leadorderinfo]
-    keywords: [pan, pan number, mobile, phone number, phone, mobile number, contact, lead id, loan applicant, loan customer, find person, person with pan, person with mobile, details of loan, sachet customer, sachet lead, loan lead, lending customer, borrower, applicant name, find applicant, customer name loan]
+    keywords: [pan, pan number, mobile, phone number, phone, mobile number, contact, lead id, loan applicant, loan customer, find person, person with pan, person with mobile, details of loan, sachet customer, sachet lead, loan lead, lending customer, borrower, applicant name, find applicant, customer name loan, externalleadid, referenceid, aggregatorid, external lead id, reference id, aggregator id, aadhaar name, adhaar name, adhar name, aadhaar customer]
 
   - name: loan_city_analysis
     label: "Loan Leads by City"
@@ -409,15 +415,15 @@ dimensions:
     label: "Lead Quality"
     table: leadorderinfo
     column: leadquality
-    values: [GOOD, BAD, MEDIUM]
-    keywords: [lead quality, quality, good lead, bad lead, medium quality, quality score, leadquality]
+    values: [EXCELLENT, GOOD, BAD, MEDIUM]
+    keywords: [lead quality, quality, excellent lead, good lead, bad lead, medium quality, quality score, leadquality]
 
   - name: lead_product
     label: "Loan Product Code"
     table: leadorderinfo
     column: productcode
-    values: [personal-loan, mobile, health, motor]
-    keywords: [product code, personal loan, productcode, loan product, which product]
+    values: [personal-loan, PL, mobile, shop, group-personal-accident, sachet-term, credit-card, home-loan, instant-loan, business-loans, credit-score, FD, BL, lamf, active-360, wellness]
+    keywords: [product code, personal loan, productcode, loan product, which product, home loan, credit card, business loan, sachet term, mobile product]
 
   - name: journey_type
     label: "Journey Type"
@@ -703,6 +709,48 @@ business_terms:
     sql_filter: "offer_isapiReject = 'True'"
     table: loanoffers
     keywords: [api reject, api rejection, api declined, lender api reject]
+
+  - term: "excellent quality lead"
+    definition: "A lead with leadquality = 'EXCELLENT' — highest quality tier in the current data"
+    sql_filter: "leadquality = 'EXCELLENT'"
+    table: leadorderinfo
+    keywords: [excellent lead, excellent quality, highest quality, top quality lead]
+
+  - term: "DPD (Days Past Due)"
+    definition: "Days Past Due — number of missed payment days. Stored in leadcustomerinfo_creditinfocrif_dpd1month, dpd3month, dpd6month, dpd12month, dpd24month. A value of 0 means no missed payments. Filter for applicants with 0 DPD to get clean credit profiles."
+    sql_filter: "leadcustomerinfo_creditinfocrif_dpd12month = '0'"
+    table: leadorderinfo
+    keywords: [dpd, days past due, missed payment, late payment, payment history, dpd 0, clean credit, no dpd, dpd12month, dpd3month, dpd6month]
+
+  - term: "hard inquiries"
+    definition: "Hard credit inquiries on CRIF bureau in last 1/3/6/12 months. Column names: leadcustomerinfo_creditinfocrif_hardinquiries1month, hardinquiries3months, hardinquiries6months, hardinquiries12months. High inquiry count signals high credit-seeking behaviour."
+    sql_filter: "leadcustomerinfo_creditinfocrif_hardinquiries3months"
+    table: leadorderinfo
+    keywords: [hard inquiry, hard inquiries, credit inquiry, bureau inquiry, enquiries, credit enquiry, how many inquiries]
+
+  - term: "FOIR"
+    definition: "Fixed Obligation to Income Ratio — monthly income as estimated by CRIF bureau (leadcustomerinfo_creditinfocrif_foirmonthlyincome). Used to calculate FOIR = total EMIs / FOIR monthly income."
+    sql_filter: "leadcustomerinfo_creditinfocrif_foirmonthlyincome"
+    table: leadorderinfo
+    keywords: [foir, fixed obligation, income ratio, crif income, bureau income, debt to income]
+
+  - term: "current overdue"
+    definition: "Total outstanding overdue amount (INR) across all credit accounts — leadcustomerinfo_creditinfocrif_currentoverdue. 0 means no overdue."
+    sql_filter: "leadcustomerinfo_creditinfocrif_currentoverdue = '0'"
+    table: leadorderinfo
+    keywords: [current overdue, overdue amount, outstanding overdue, total overdue, defaulted amount]
+
+  - term: "aadhaar name lookup"
+    definition: "Search by Aadhaar card name — use leadcustomerinfo_adhaarcustomername column. This often matches the PAN name. Works in both leadorderinfo and loanoffers."
+    sql_filter: "lower(leadcustomerinfo_adhaarcustomername) ILIKE '%name%'"
+    table: leadorderinfo
+    keywords: [aadhaar, adhaar, adhar, aadhaar name, adhaar name, aadhaar customer name, adhaarcustomername]
+
+  - term: "external lead ID lookup"
+    definition: "Look up a lead by its external ID (externalleadid), reference ID (referenceid), or aggregator ID (aggregatorid). All three are present in both leadorderinfo and loanoffers."
+    sql_filter: "externalleadid = '<id>' OR referenceid = '<id>'"
+    table: leadorderinfo
+    keywords: [external lead id, externalleadid, reference id, referenceid, aggregator id, aggregatorid, lead by id, find by id]
 
   - term: "life vertical"
     definition: "Life insurance policies — vertical = 'LIFE'"
